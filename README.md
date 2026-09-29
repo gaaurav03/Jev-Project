@@ -80,7 +80,7 @@ const transcript: Message[] = [
 const result = await compactMessages(transcript, { preserveRecentMessages: 4 });
 // Offline alternative: compactMessages(transcript, { mode: 'local' })
 console.log(result.messages, result.decisions, result.stats);
-if (reductionRatio(result) < 0.25) {
+if (reductionRatio(result) < 0.15) {
   // not worth it: keep the original transcript, or summarize instead
 }
 ```
@@ -293,7 +293,7 @@ hook sends after each live compaction. Telemetry is **on by default**:
   `https://jev-project-bay.vercel.app/api/telemetry`:
 
 ~~~json
-{ "v": 1, "install_id": "<random 32 hex>", "plugin_version": "0.5.0",
+{ "v": 1, "install_id": "<random 32 hex>", "plugin_version": "0.5.1",
   "mode": "local", "status": "applied",
   "tokens_before": 1000, "tokens_after": 600, "latency_ms": 13 }
 ~~~
