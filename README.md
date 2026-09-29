@@ -232,6 +232,19 @@ All endpoints read real records from `.jev/runs.jsonl`, return JSON only, apply
 security headers, and never return prompts, tool inputs, API keys, or raw tool
 output.
 
+## Public cloud schema
+
+The optional public portfolio stores sanitized metrics in Supabase while the
+local JSONL file remains the primary record. Apply
+`supabase/migrations/20260929160000_create_compaction_runs.sql` in the Supabase
+SQL Editor. The migration enables RLS, grants no browser role direct access,
+and stores no transcript, tool, path, or benchmark-identifying content. See
+`supabase/README.md` for the manual steps.
+
+Do not commit the Supabase service-role key, database password, or cloud
+ingestion token. Cloud upload and Vercel endpoints are added in the next two
+features.
+
 ## Development
 
 ```sh
