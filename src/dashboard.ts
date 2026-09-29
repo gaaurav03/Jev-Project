@@ -29,6 +29,8 @@ const DASHBOARD_ASSETS = new Map<string, [string, string]>([
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/dashboard.css', ['dashboard.css', 'text/css; charset=utf-8']],
   ['/dashboard.js', ['dashboard.js', 'text/javascript; charset=utf-8']],
+  ['/assets/plugin-installed.png', ['assets/plugin-installed.png', 'image/png']],
+  ['/assets/compact-toast.png', ['assets/compact-toast.png', 'image/png']],
 ]);
 
 const MODES: readonly CompactionMode[] = ['jev', 'local'];

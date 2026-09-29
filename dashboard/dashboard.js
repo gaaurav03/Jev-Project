@@ -370,6 +370,22 @@
     applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
   });
   byId('refresh-button').addEventListener('click', loadAll);
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const source = byId(button.dataset.copy);
+      try {
+        await navigator.clipboard.writeText(source ? source.textContent : '');
+        button.textContent = 'copied';
+        button.classList.add('copied');
+      } catch {
+        button.textContent = 'failed';
+      }
+      window.setTimeout(() => {
+        button.textContent = 'copy';
+        button.classList.remove('copied');
+      }, 1600);
+    });
+  });
   byId('run-filters').addEventListener('submit', async (event) => {
     event.preventDefault();
     byId('page-error').hidden = true;
