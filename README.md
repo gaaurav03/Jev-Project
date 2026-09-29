@@ -257,6 +257,30 @@ Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the same
 locally. Each run is saved to `.jev/runs.jsonl` first; upload failures are
 sanitized and never change compaction or benchmark results.
 
+## Public Vercel dashboard
+
+Import this repository into Vercel. The committed `vercel.json` selects the
+framework-free `dashboard/` directory, runs the TypeScript build, and applies
+security headers. Add these Environment Variables in Vercel for Production
+(and Preview if you want preview deployments to use live data):
+
+~~~dotenv
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+JEV_CLOUD_INGEST_TOKEN=the-same-ingestion-token-used-locally
+~~~
+
+Deploy, then put the deployment URL into local `.env` as
+`JEV_CLOUD_INGEST_URL=https://your-project.vercel.app/api/ingest`, enable
+`JEV_CLOUD_UPLOAD=1`, reload those variables, and restart Claude Code.
+
+The public site refreshes every 30 seconds while visible. `GET /api/summary`
+and `GET /api/runs` read at most the newest 1,000 constrained Supabase rows;
+run filters remain bounded to 200 results. Public responses omit exact run IDs,
+fallback details, benchmark identifiers, decision details, and tool names.
+`POST /api/ingest` remains protected by the ingestion token. The local
+dashboard continues to provide private per-run details from `.jev/runs.jsonl`.
+
 ## Development
 
 ```sh

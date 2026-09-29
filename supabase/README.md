@@ -23,3 +23,11 @@ ingestion token. Vercel needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
 `JEV_CLOUD_INGEST_TOKEN`. Local Claude Code and benchmark runs need only
 `JEV_CLOUD_UPLOAD=1`, `JEV_CLOUD_INGEST_URL`, and the matching ingestion token.
 The browser never receives either secret.
+
+## Connect Vercel
+
+Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+`JEV_CLOUD_INGEST_TOKEN` in the Vercel project settings, then deploy the
+repository. Do not add `SUPABASE_SERVICE_ROLE_KEY` to local `.env`; Claude Code
+needs only the ingestion URL and token. The browser calls Vercel functions and
+never receives Supabase credentials or direct table access.

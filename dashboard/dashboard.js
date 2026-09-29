@@ -5,6 +5,7 @@
   const number = (value) => typeof value === 'number' && Number.isFinite(value) ? value : null;
   const integer = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
   const decimal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+  let loading = false;
 
   function setText(id, value) {
     const node = byId(id);
@@ -186,6 +187,9 @@
     const body = byId('runs-body');
     body.replaceChildren();
     setText('runs-meta', `${payload.returned} shown · ${payload.available} matching`);
+    setText('runs-hint', payload.runs.some((run) => typeof run.id === 'string')
+      ? 'Select a row for local decision details'
+      : 'Public rows omit IDs and decision details');
     if (payload.runs.length === 0) {
       const row = element('tr');
       const message = cell(row, 'No runs match these filters.', 'table-message');
@@ -195,16 +199,19 @@
     }
     payload.runs.forEach((run) => {
       const row = element('tr');
-      row.tabIndex = 0;
-      row.setAttribute('role', 'button');
-      row.setAttribute('aria-label', `Open details for ${run.id}`);
-      row.addEventListener('click', () => openRun(run.id));
-      row.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openRun(run.id);
-        }
-      });
+      if (typeof run.id === 'string') {
+        row.className = 'has-detail';
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', `Open details for ${run.id}`);
+        row.addEventListener('click', () => openRun(run.id));
+        row.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openRun(run.id);
+          }
+        });
+      }
       cell(row, formatTime(run.timestamp));
       cell(row, '').append(badge(run.mode));
       cell(row, run.metrics ? `${formatNumber(run.metrics.estimatedTokensBefore)} / ${formatNumber(run.metrics.estimatedTokensAfter)}` : '—');
@@ -237,10 +244,12 @@
   }
 
   async function loadAll() {
+    if (loading) return;
+    loading = true;
     const refresh = byId('refresh-button');
     refresh.disabled = true;
     byId('page-error').hidden = true;
-    setText('sync-state', 'reading local history…');
+    setText('sync-state', 'refreshing live metrics…');
     try {
       const [summary, runs] = await Promise.all([
         fetchJson('/api/summary').then(validateSummary),
@@ -252,13 +261,14 @@
     } catch (error) {
       byId('page-error').hidden = false;
       setText('page-error-message', error instanceof Error ? error.message : 'Unable to load dashboard data.');
-      setText('sync-state', 'local history unavailable');
+      setText('sync-state', 'live metrics unavailable');
       const row = element('tr');
       const message = cell(row, 'Run history could not be loaded.', 'table-message');
       message.colSpan = 9;
       byId('runs-body').replaceChildren(row);
     } finally {
       refresh.disabled = false;
+      loading = false;
     }
   }
 
@@ -368,5 +378,8 @@
   }, { rootMargin: '-25% 0px -60%', threshold: [0, .25, .5] });
   sections.forEach((section) => observer.observe(section));
 
+  window.setInterval(() => {
+    if (!document.hidden) loadAll();
+  }, 30_000);
   loadAll();
 })();
