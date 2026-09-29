@@ -242,8 +242,20 @@ and stores no transcript, tool, path, or benchmark-identifying content. See
 `supabase/README.md` for the manual steps.
 
 Do not commit the Supabase service-role key, database password, or cloud
-ingestion token. Cloud upload and Vercel endpoints are added in the next two
-features.
+ingestion token. Cloud upload is disabled by default. After deploying the
+Vercel endpoint, set these local values before running Claude Code or the
+benchmark CLI:
+
+~~~dotenv
+JEV_CLOUD_UPLOAD=1
+JEV_CLOUD_INGEST_URL=https://your-project.vercel.app/api/ingest
+JEV_CLOUD_INGEST_TOKEN=your-ingestion-token
+~~~
+
+Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and the same
+`JEV_CLOUD_INGEST_TOKEN` only in Vercel. The service-role key is never needed
+locally. Each run is saved to `.jev/runs.jsonl` first; upload failures are
+sanitized and never change compaction or benchmark results.
 
 ## Development
 

@@ -134,6 +134,9 @@ describe('compactSession', () => {
           repo: async () => ({ root: 'C:/workspace' }),
         },
         ui: { log: () => undefined },
+        env: { get: async () => undefined },
+        http: { fetch: async () => ({ status: 200, ok: true, text: '' }) },
+        clock: { after: () => ({ cancel: () => undefined }) },
       },
       config,
       'applied',
@@ -154,6 +157,52 @@ describe('compactSession', () => {
     });
   });
 
+  it('keeps the local record when an opt-in cloud upload fails', async () => {
+    const config = resolveHookConfig({ mode: 'local', preserveRecentMessages: 1 });
+    const { result: output } = await compactSession(transcript(), config, async () => {
+      throw new Error('network must not run');
+    });
+    output.decisions[0]!.tool = 'alice@example.com';
+    let jsonl = '';
+    let cloudBody = '';
+    const logs: string[] = [];
+    await recordLiveRun(
+      {
+        fs: {
+          exists: async () => false,
+          read: async () => '',
+          write: async (_path, content) => { jsonl = content; },
+        },
+        session: {
+          cwd: async () => 'C:/workspace',
+          repo: async () => ({ root: 'C:/workspace' }),
+        },
+        ui: { log: (message) => logs.push(message) },
+        env: {
+          get: async (name) => ({
+            JEV_CLOUD_UPLOAD: '1',
+            JEV_CLOUD_INGEST_URL: 'https://example.test/api/ingest',
+            JEV_CLOUD_INGEST_TOKEN: 'a'.repeat(64),
+          })[name],
+        },
+        http: {
+          fetch: async (_url, init) => {
+            cloudBody = init?.body ?? '';
+            return { status: 503, ok: false, text: 'private upstream error' };
+          },
+        },
+        clock: { after: () => ({ cancel: () => undefined }) },
+      },
+      config,
+      'applied',
+      null,
+      output,
+    );
+
+    expect(jsonl).toContain('alice@example.com');
+    expect(cloudBody).not.toContain('alice@example.com');
+    expect(logs).toEqual(['cloud upload unavailable; local history was saved']);
+  });
   it('runs the library over the engine fetch and reports the outcome', async () => {
     const bodies: string[] = [];
     const config = { ...resolveHookConfig({ preserveRecentMessages: 1 }), apiKey: 'k', model: 'jev-x' };

@@ -9,6 +9,11 @@ import type {
 } from 'claude-code';
 
 import { compact, reductionRatio, resolveOptions } from '../src/compact.js';
+import {
+  CLOUD_UPLOAD_TIMEOUT_MS,
+  cloudUploadConfig,
+  uploadCloudRun,
+} from '../src/cloud.js';
 import { LocalAsker } from '../src/local.js';
 import {
   compactRunMetrics,
@@ -16,6 +21,7 @@ import {
   DEFAULT_RUN_HISTORY_PATH,
   serializeRunRecord,
   type RunFallbackReason,
+  type RunRecord,
   type RunStatus,
 } from '../src/run-record.js';
 import {
@@ -58,9 +64,14 @@ export type HookFetch = (url: string, init?: HookFetchInit) => Promise<HookFetch
 
 type HookTimer = (ms: number, fn: () => void) => { cancel: () => void };
 
-export function withHookTimeout<T>(request: Promise<T>, after: HookTimer): Promise<T> {
+export function withHookTimeout<T>(
+  request: Promise<T>,
+  after: HookTimer,
+  timeoutMs = JEV_REQUEST_TIMEOUT_MS,
+  message = 'Jev request timed out',
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = after(JEV_REQUEST_TIMEOUT_MS, () => reject(new Error('Jev request timed out')));
+    const timer = after(timeoutMs, () => reject(new Error(message)));
     request.then(
       (value) => { timer.cancel(); resolve(value); },
       (error: unknown) => { timer.cancel(); reject(error); },
@@ -312,14 +323,18 @@ export async function recordLiveRun(
       repo: () => Promise<{ root: string } | null>;
     };
     ui: { log: (text: string) => void };
+    env: { get: (name: string) => Promise<string | undefined> };
+    http: { fetch: HookFetch };
+    clock: { after: HookTimer };
   },
   config: HookConfig,
   status: RunStatus,
   reason: RunFallbackReason | null,
   result?: CompactResult,
 ): Promise<void> {
+  let record: RunRecord;
   try {
-    const record = createRunRecord({
+    record = createRunRecord({
       source: 'live',
       mode: config.mode,
       status,
@@ -335,6 +350,26 @@ export async function recordLiveRun(
     await $.fs.write(path, previous + serializeRunRecord(record));
   } catch {
     $.ui.log('run history unavailable');
+    return;
+  }
+
+  try {
+    const enabled = await $.env.get('JEV_CLOUD_UPLOAD');
+    if (enabled !== '1') return;
+    const cloud = cloudUploadConfig(
+      enabled,
+      await $.env.get('JEV_CLOUD_INGEST_URL'),
+      await $.env.get('JEV_CLOUD_INGEST_TOKEN'),
+    );
+    if (!cloud) return;
+    await withHookTimeout(
+      uploadCloudRun(record, cloud, (url, init) => $.http.fetch(url, init)),
+      (ms, fn) => $.clock.after(ms, fn),
+      CLOUD_UPLOAD_TIMEOUT_MS,
+      'Cloud upload timed out',
+    );
+  } catch {
+    $.ui.log('cloud upload unavailable; local history was saved');
   }
 }
 
