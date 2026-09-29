@@ -9,6 +9,12 @@ import {
   runBenchmarkSuite,
   type ReviewedVerification,
 } from './benchmark.js';
+import {
+  CLOUD_UPLOAD_TIMEOUT_MS,
+  cloudUploadConfig,
+  uploadCloudRun,
+  type CloudUploadConfig,
+} from './cloud.js';
 import { compactMessages } from './messages.js';
 import { createRunRecord } from './run-record.js';
 import { appendRun } from './run-store.js';
@@ -77,6 +83,17 @@ async function main(): Promise<void> {
     throw new Error('Benchmark JSON exceeds ' + MAX_BENCHMARK_BYTES + ' bytes');
   }
   const suite = parseBenchmarkSuiteJson(await readFile(options.casesPath, 'utf8'));
+  let cloudConfig: CloudUploadConfig | null = null;
+  let cloudWarningShown = false;
+  try {
+    cloudConfig = cloudUploadConfig(
+      process.env.JEV_CLOUD_UPLOAD,
+      process.env.JEV_CLOUD_INGEST_URL,
+      process.env.JEV_CLOUD_INGEST_TOKEN,
+    );
+  } catch {
+    process.stderr.write('Cloud upload disabled: invalid configuration\n');
+  }
   const modes: CompactionMode[] =
     options.mode === 'both' ? ['jev', 'local'] : [options.mode];
   const verificationRuns = new Map<string, Promise<boolean>>();
@@ -104,32 +121,43 @@ async function main(): Promise<void> {
   );
   for (const report of reports) {
     for (const result of report.results) {
-      await appendRun(
-        createRunRecord({
-          source: 'benchmark',
-          mode: report.mode,
-          status: result.taskPassed ? 'passed' : 'failed',
-          fallbackReason: null,
-          metrics: {
-            estimatedTokensBefore: result.estimatedTokensBefore,
-            estimatedTokensAfter: result.estimatedTokensAfter,
-            estimatedTokensSaved: result.estimatedTokensSaved,
-            estimatedReduction: result.estimatedReduction,
-            latencyMs: result.latencyMs,
-            requests: result.requests,
-            apiUsage: result.apiUsage,
-            costUsd: result.costUsd,
-            criticalRetention: {
-              required: result.criticalRetention.required,
-              retained: result.criticalRetention.retained,
-              ratio: result.criticalRetention.ratio,
-            },
-            taskPassed: result.taskPassed,
+      const record = createRunRecord({
+        source: 'benchmark',
+        mode: report.mode,
+        status: result.taskPassed ? 'passed' : 'failed',
+        fallbackReason: null,
+        metrics: {
+          estimatedTokensBefore: result.estimatedTokensBefore,
+          estimatedTokensAfter: result.estimatedTokensAfter,
+          estimatedTokensSaved: result.estimatedTokensSaved,
+          estimatedReduction: result.estimatedReduction,
+          latencyMs: result.latencyMs,
+          requests: result.requests,
+          apiUsage: result.apiUsage,
+          costUsd: result.costUsd,
+          criticalRetention: {
+            required: result.criticalRetention.required,
+            retained: result.criticalRetention.retained,
+            ratio: result.criticalRetention.ratio,
           },
-          decisions: result.decisions,
-          benchmark: { caseId: result.id, category: result.category },
-        }),
-      );
+          taskPassed: result.taskPassed,
+        },
+        decisions: result.decisions,
+        benchmark: { caseId: result.id, category: result.category },
+      });
+      await appendRun(record);
+      if (cloudConfig) {
+        try {
+          await uploadCloudRun(record, cloudConfig, async (url, init) =>
+            fetch(url, { ...init, signal: AbortSignal.timeout(CLOUD_UPLOAD_TIMEOUT_MS) }));
+        } catch {
+          cloudConfig = null;
+          if (!cloudWarningShown) {
+            process.stderr.write('Cloud upload unavailable; local history was saved\n');
+            cloudWarningShown = true;
+          }
+        }
+      }
     }
   }
   const output = options.json

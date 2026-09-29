@@ -19,5 +19,7 @@ browser will receive a smaller, sanitized response from Vercel API functions;
 it will never connect directly to this table.
 
 Never commit the database password, service-role key, project keys, or cloud
-ingestion token. The next cloud feature will read them from local and Vercel
-environment variables.
+ingestion token. Vercel needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+`JEV_CLOUD_INGEST_TOKEN`. Local Claude Code and benchmark runs need only
+`JEV_CLOUD_UPLOAD=1`, `JEV_CLOUD_INGEST_URL`, and the matching ingestion token.
+The browser never receives either secret.

@@ -85,6 +85,11 @@ to the repository-root `.jev/runs.jsonl`. It stores no transcript, tool input,
 raw tool output, API key, or raw error message. Storage failures are logged and
 do not change the compaction result.
 
+Optional public metrics upload uses `JEV_CLOUD_UPLOAD=1`,
+`JEV_CLOUD_INGEST_URL`, and `JEV_CLOUD_INGEST_TOKEN`. The hook uploads only the
+sanitized aggregate row after the local JSONL write. A failed or timed-out
+upload is logged without remote error details and does not change compaction.
+
 ## Scope and caveat
 
 Function hooks are early access and may change between Claude Code releases.
