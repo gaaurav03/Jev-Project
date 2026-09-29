@@ -25,7 +25,8 @@
     "demo": "tsx examples/demo.ts",
     "typecheck:hooks": "tsc -p tsconfig.hooks.json",
     "validate:plugin": "claude plugin validate .claude-plugin/plugin.json",
-    "bench": "tsx src/cli.ts"
+    "bench": "tsx src/cli.ts",
+    "dashboard": "tsx src/dashboard-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
