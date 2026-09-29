@@ -61,6 +61,11 @@ export interface DashboardSummary {
   }>;
 }
 
+export type DashboardSummaryRun = Pick<
+  RunRecord,
+  'id' | 'timestamp' | 'source' | 'mode' | 'metrics'
+>;
+
 export type DashboardRun = Omit<RunRecord, 'decisions'> & {
   decisionCounts: { kept: number; truncated: number; removed: number };
 };
@@ -70,7 +75,7 @@ export interface DashboardServerOptions {
   port?: number;
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
   }
@@ -87,7 +92,7 @@ function sumKnown(values: readonly (number | null)[]): number | null {
   return known.length === 0 ? null : known.reduce((sum, value) => sum + value, 0);
 }
 
-function aggregate(records: readonly RunRecord[]): DashboardModeSummary {
+function aggregate(records: readonly DashboardSummaryRun[]): DashboardModeSummary {
   const metrics = records.flatMap((record) => record.metrics ? [record.metrics] : []);
   const critical = metrics.flatMap((entry) =>
     entry.criticalRetention ? [entry.criticalRetention] : [],
@@ -125,7 +130,7 @@ function aggregate(records: readonly RunRecord[]): DashboardModeSummary {
   };
 }
 
-export function summarizeRuns(records: readonly RunRecord[]): DashboardSummary {
+export function summarizeRuns(records: readonly DashboardSummaryRun[]): DashboardSummary {
   const all = aggregate(records);
   return {
     generatedAt: new Date().toISOString(),
@@ -231,10 +236,15 @@ function dateFilter(value: string | undefined, endOfDay: boolean): number | unde
   return parsed;
 }
 
-function filteredRuns(records: readonly RunRecord[], url: URL): {
-  records: RunRecord[];
+export interface DashboardFilters {
+  mode?: CompactionMode;
+  status?: RunStatus;
+  from?: number;
+  to?: number;
   limit: number;
-} {
+}
+
+export function parseDashboardFilters(url: URL): DashboardFilters {
   const allowed = new Set(['mode', 'status', 'from', 'to', 'limit']);
   for (const name of url.searchParams.keys()) {
     if (!allowed.has(name)) throw new HttpError(400, 'Unknown run filter');
@@ -259,19 +269,32 @@ function filteredRuns(records: readonly RunRecord[], url: URL): {
   const limit = rawLimit === undefined ? 50 : Number(rawLimit);
   if (limit > MAX_API_RUNS) throw new HttpError(400, 'Invalid limit');
   return {
+    ...(mode === undefined ? {} : { mode: mode as CompactionMode }),
+    ...(status === undefined ? {} : { status: status as RunStatus }),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
     limit,
+  };
+}
+
+function filteredRuns(records: readonly RunRecord[], url: URL): {
+  records: RunRecord[];
+  limit: number;
+} {
+  const filters = parseDashboardFilters(url);
+  return {
+    limit: filters.limit,
     records: records.filter((record) => {
       const time = Date.parse(record.timestamp);
       return (
-        (mode === undefined || record.mode === mode) &&
-        (status === undefined || record.status === status) &&
-        (from === undefined || time >= from) &&
-        (to === undefined || time <= to)
+        (filters.mode === undefined || record.mode === filters.mode) &&
+        (filters.status === undefined || record.status === filters.status) &&
+        (filters.from === undefined || time >= filters.from) &&
+        (filters.to === undefined || time <= filters.to)
       );
     }),
   };
 }
-
 function requireNoQuery(url: URL): void {
   if ([...url.searchParams].length > 0) throw new HttpError(400, 'Query not supported');
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#141517">
-  <meta name="description" content="Local observability dashboard for Jev context compaction.">
+  <meta name="description" content="Privacy-safe observability dashboard for Jev context compaction.">
   <title>Jev — compaction dashboard</title>
   <link rel="stylesheet" href="/dashboard.css">
   <script src="/dashboard.js" defer></script>
@@ -24,7 +24,7 @@
         <a href="#about">about</a>
       </nav>
       <div class="nav-actions">
-        <span class="local-badge"><i aria-hidden="true"></i>127.0.0.1</span>
+        <span class="local-badge"><i aria-hidden="true"></i>live metrics</span>
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch color theme">
           <span aria-hidden="true">◐</span>
         </button>
@@ -44,12 +44,12 @@
 
   <main>
     <section class="hero container" id="overview">
-      <div class="eyebrow"><i aria-hidden="true"></i>local compaction observability</div>
-      <h1>Context stays <span class="accent-orange">lean.</span><br>Decisions stay <span class="accent-blue">visible.</span></h1>
-      <p class="hero-copy">Inspect estimated savings, benchmark retention, and every safe compaction decision from your local run history.</p>
+      <div class="eyebrow"><i aria-hidden="true"></i>privacy-safe compaction observability</div>
+      <h1>Context stays <span class="accent-orange">lean.</span><br>Impact stays <span class="accent-blue">visible.</span></h1>
+      <p class="hero-copy">Inspect estimated savings, benchmark retention, and sanitized run metrics without exposing prompts or tool output.</p>
       <div class="hero-actions">
         <button class="button primary" id="refresh-button" type="button">↻ refresh data</button>
-        <span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to local history…</span>
+        <span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to run history…</span>
       </div>
 
       <div class="stats-strip" id="overview-cards" aria-busy="true">
@@ -79,7 +79,7 @@
     <div class="container">
       <div class="notice error" id="page-error" role="alert" hidden>
         <strong>Dashboard data is unavailable.</strong>
-        <span id="page-error-message">Check that the local server is running and try again.</span>
+        <span id="page-error-message">The metrics service could not be reached. Try again shortly.</span>
       </div>
       <div class="notice" id="page-empty" hidden>
         <strong>No run history yet.</strong>
@@ -92,7 +92,7 @@
         <header class="section-head">
           <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>01 / telemetry</span></div>
           <h2>Signal, not guesswork.</h2>
-          <p>Reduction and latency come directly from local run records. Missing values stay visibly unavailable.</p>
+          <p>Reduction and latency come directly from recorded runs. Missing values stay visibly unavailable.</p>
         </header>
 
         <div class="telemetry-grid">
@@ -162,7 +162,7 @@
       <div class="container">
         <header class="section-head compact">
           <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>02 / run history</span></div>
-          <h2>Every decision has a trail.</h2>
+          <h2>Every run leaves a signal.</h2>
         </header>
 
         <form class="filters" id="run-filters">
@@ -188,7 +188,7 @@
               <tbody id="runs-body"><tr><td colspan="9" class="table-message">Loading run history…</td></tr></tbody>
             </table>
           </div>
-          <footer class="canvas-status"><span>Select a row for decision details</span><span class="push-right" id="runs-limit">max 50 records</span></footer>
+          <footer class="canvas-status"><span id="runs-hint">Loading run access level</span><span class="push-right" id="runs-limit">max 50 records</span></footer>
         </article>
       </div>
     </section>
@@ -210,10 +210,10 @@
       <div class="container about-grid">
         <header class="section-head compact">
           <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>04 / about</span></div>
-          <h2>Local by design.</h2>
+          <h2>Privacy by design.</h2>
         </header>
         <div class="about-copy">
-          <p>This dashboard reads safe metrics and decision metadata from <code>.jev/runs.jsonl</code>. It never displays prompts, secrets, or raw tool output.</p>
+          <p>This dashboard displays constrained metrics only. Public responses omit exact run IDs, benchmark identifiers, tool names, prompts, secrets, and raw tool output.</p>
           <p>Token figures are estimates. API usage and cost remain unknown unless the provider reports them.</p>
         </div>
       </div>
@@ -221,7 +221,7 @@
   </main>
 
   <footer class="footer">
-    <div class="container"><span><b>jev</b> · observable context compaction</span><span>local dashboard · no telemetry upload</span></div>
+    <div class="container"><span><b>jev</b> · observable context compaction</span><span>privacy-safe live metrics</span></div>
   </footer>
 
   <dialog class="detail-dialog" id="run-detail" aria-labelledby="detail-title">

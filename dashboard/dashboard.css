@@ -201,8 +201,9 @@ code { padding: 2px 5px; border: 1px solid var(--hair); border-radius: 3px; back
 table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 10.5px; font-variant-numeric: tabular-nums; }
 th, td { padding: 11px 12px; border-bottom: 1px solid var(--hair); text-align: left; white-space: nowrap; }
 th { background: var(--paper-2); color: var(--ink-3); font-size: 9px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
-tbody tr { cursor: pointer; transition: background .15s; }
-tbody tr:hover, tbody tr:focus-within { background: var(--paper-2); }
+tbody tr { transition: background .15s; }
+tbody tr.has-detail { cursor: pointer; }
+tbody tr.has-detail:hover, tbody tr.has-detail:focus-within { background: var(--paper-2); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody button { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; }
 .table-message { height: 112px; color: var(--ink-3); text-align: center; }
