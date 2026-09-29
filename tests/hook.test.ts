@@ -6,6 +6,7 @@ import {
   resolveHookConfig,
   summarize,
   toSessionMessages,
+  withHookTimeout,
 } from '../hooks/fast-jev.ts';
 import { applyDecisions, collectToolCalls, decideCall, type Message } from '../src/index.js';
 
@@ -125,6 +126,36 @@ describe('compactSession', () => {
     expect(summarize(output)).toMatch(/^\d+% reduction; 1 kept, 1 call_dropped; state ~\d+ tokens \(full\) in 1 request\(s\)$/);
     expect(decisionLog(output)).toBe('t1:Read:drop_call/call=0.10/result=0.10 t2:Bash:keep/call=0.90/result=0.90');
     expect(decisionLogLines(output)).toEqual([`decisions: ${decisionLog(output)}`]);
+  });
+
+  it('redacts hook request copies and leaves the transcript untouched', async () => {
+    const messages = transcript();
+    messages[0]!.text = 'Email alice@example.com, token=hook-secret';
+    const original = structuredClone(messages);
+    const bodies: string[] = [];
+    await compactSession(
+      messages,
+      { ...resolveHookConfig({ preserveRecentMessages: 1 }), apiKey: 'transport-key' },
+      jevFetch(() => 0.9, bodies),
+    );
+    expect(bodies.join('')).not.toMatch(/alice@example\.com|hook-secret/);
+    expect(messages).toEqual(original);
+  });
+
+  it('times out the host request and cancels completed timers', async () => {
+    let timeout: (() => void) | undefined;
+    let cancelled = false;
+    const after = (_ms: number, fn: () => void) => {
+      timeout = fn;
+      return { cancel: () => { cancelled = true; } };
+    };
+    const completed = await withHookTimeout(Promise.resolve('ok'), after);
+    expect(completed).toBe('ok');
+    expect(cancelled).toBe(true);
+
+    const pending = withHookTimeout(new Promise<never>(() => undefined), after);
+    timeout?.();
+    await expect(pending).rejects.toThrow(/timed out/);
   });
 
   it('splits a long decision log into ui.log lines under the host limit', async () => {

@@ -403,8 +403,34 @@ describe('HTTP client', () => {
     });
   });
 
+  it('redacts secrets and PII from the outbound copy without changing the input', () => {
+    const privateKey = '-----BEGIN PRIVATE KEY-----\nabc123\n-----END PRIVATE KEY-----';
+    const source = 'const token = process.env.TOKEN; export const add = (a: number) => a + 1;';
+    const state = {
+      text: 'Bearer bearer-token-123 email alice@example.com phone +1 (415) 555-2671',
+      source,
+      nested: { password: 'hunter2', apiKey: 'generic-api-key-secret', keyBlock: privateKey },
+      keys: ['sk-ant-api-key-123456789', 'github_pat_1234567890', 'eyJabc.def.ghi'],
+    };
+    const original = structuredClone(state);
+    const request = buildJevRequest({ apiKey: 'transport-key' }, state, {
+      q: { type: 'noul', instructions: 'token=question-secret' },
+    });
+
+    expect(request.body).not.toMatch(
+      /bearer-token-123|alice@example\.com|415|hunter2|generic-api-key-secret|abc123|sk-ant|github_pat|eyJabc|question-secret/,
+    );
+    expect(request.body).toContain('[REDACTED');
+    expect((JSON.parse(request.body) as { state: { source: string } }).state.source).toBe(source);
+    expect(state).toEqual(original);
+    expect(request.headers.authorization).toBe('Bearer transport-key');
+  });
+
   it('rejects failed and malformed responses', () => {
-    expect(() => parseJevResponse(500, false, 'boom')).toThrow(/500/);
+    expect(() => parseJevResponse(500, false, 'secret remote response')).toThrow(/500/);
+    expect(() => parseJevResponse(500, false, 'secret remote response')).not.toThrow(
+      /secret remote/,
+    );
     expect(() => parseJevResponse(200, true, 'not json')).toThrow(/malformed/);
     expect(() => parseJevResponse(200, true, '{}')).toThrow(/missing answers/);
     expect(parseJevResponse(200, true, '{"answers":{}}')).toEqual({ answers: {} });
@@ -412,17 +438,20 @@ describe('HTTP client', () => {
 
   it('asks over fetch and refuses to run without a key', async () => {
     const bodies: string[] = [];
+    const signals: AbortSignal[] = [];
     const client = new JevClient({
       apiKey: 'k',
       model: 'jev-test',
       fetch: (async (_url: string | URL | Request, init?: RequestInit) => {
         bodies.push(String(init?.body));
+        signals.push(init?.signal as AbortSignal);
         return new Response(JSON.stringify({ answers: { q: { noul: 0.4 } } }), { status: 200 });
       }) as typeof fetch,
     });
     const response = await client.ask('state', { q: { type: 'noul', instructions: 'x' } });
     expect(response.answers.q).toEqual({ noul: 0.4 });
     expect(JSON.parse(bodies[0]!).model).toBe('jev-test');
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
 
     const keyless = new JevClient({ apiKey: '' });
     await expect(keyless.ask('s', {})).rejects.toThrow(/TYPESAFE_API_KEY/);

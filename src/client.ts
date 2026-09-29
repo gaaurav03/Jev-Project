@@ -1,4 +1,4 @@
-import { buildJevRequest, parseJevResponse } from './request.js';
+import { buildJevRequest, JEV_REQUEST_TIMEOUT_MS, parseJevResponse } from './request.js';
 import type { JevAsker, JevQuestions, JevResponse, JevState } from './types.js';
 
 export interface JevClientOptions {
@@ -33,11 +33,19 @@ export class JevClient implements JevAsker {
       state,
       questions,
     );
-    const response = await this.fetcher(request.url, {
-      method: request.method,
-      headers: request.headers,
-      body: request.body,
-    });
+    const signal = AbortSignal.timeout(JEV_REQUEST_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await this.fetcher(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        signal,
+      });
+    } catch (error) {
+      if (signal.aborted) throw new Error('Jev request timed out');
+      throw error;
+    }
     return parseJevResponse(response.status, response.ok, await response.text());
   }
 }
