@@ -16,6 +16,7 @@ import {
   type HistoryToolCall,
   type JevAsker,
   type JevQuestions,
+  type JevResponse,
   type Message,
   type ToolCall,
 } from '../src/index.js';
@@ -52,7 +53,11 @@ function transcript(): Message[] {
 
 type Seen = { state: unknown; questions: string[] };
 
-function fakeJev(answer: (name: string) => number, seen: Seen[] = []): JevAsker {
+function fakeJev(
+  answer: (name: string) => number,
+  seen: Seen[] = [],
+  usage?: JevResponse['usage'],
+): JevAsker {
   return {
     async ask(state, questions: JevQuestions) {
       seen.push({ state, questions: Object.keys(questions) });
@@ -60,6 +65,7 @@ function fakeJev(answer: (name: string) => number, seen: Seen[] = []): JevAsker 
         answers: Object.fromEntries(
           Object.keys(questions).map((key) => [key, { type: 'noul' as const, noul: answer(key) }]),
         ),
+        usage,
       };
     },
   };
@@ -343,7 +349,11 @@ describe('compact', () => {
     }).tokens;
     const output = await compact(
       messages,
-      fakeJev((name) => (name.startsWith('call_') ? 0.9 : 0.1), seen),
+      fakeJev(
+        (name) => (name.startsWith('call_') ? 0.9 : 0.1),
+        seen,
+        { input_tokens: 100, output_tokens: 20 },
+      ),
       { preserveRecentMessages: 1, maxRequestTokens: stateTokens + 150 },
     );
 
@@ -361,7 +371,38 @@ describe('compact', () => {
     expect(output.decisions.map((d) => d.action)).toEqual(['drop_result', 'drop_result', 'drop_result']);
     expect(output.messages).toHaveLength(messages.length);
     expect(output.stats).toMatchObject({ resultsDropped: 3, kept: 0, callsDropped: 0, pinned: 0 });
+    expect(output.stats.apiUsage).toEqual({
+      inputTokens: seen.length * 100,
+      outputTokens: seen.length * 20,
+    });
+    expect(output.stats.costUsd).toBeNull();
+    expect(output.stats.estimatedTokensBefore).toBeGreaterThan(
+      output.stats.estimatedTokensAfter,
+    );
+    expect(output.stats.estimatedTokensSaved).toBe(
+      output.stats.estimatedTokensBefore - output.stats.estimatedTokensAfter,
+    );
     expect(reductionRatio(output)).toBeGreaterThan(0);
+  });
+
+  it('keeps missing provider usage fields as null', async () => {
+    const messages = transcript();
+    const stateTokens = fitState(messages, collectToolCalls(messages, 1), {
+      ...fit,
+      goal: '',
+      preserveRecentMessages: 1,
+    }).tokens;
+    const output = await compact(
+      messages,
+      fakeJev(() => 0.9, [], { input_tokens: 50 }),
+      { preserveRecentMessages: 1, maxRequestTokens: stateTokens + 150 },
+    );
+
+    expect(output.stats.requests).toBeGreaterThan(1);
+    expect(output.stats.apiUsage).toEqual({
+      inputTokens: output.stats.requests * 50,
+      outputTokens: null,
+    });
   });
 
   it('keeps everything without calling Jev when no tool call is a candidate', async () => {
@@ -369,7 +410,14 @@ describe('compact', () => {
     const messages = [message('user', 'hello'), message('assistant', 'hi')];
     const output = await compact(messages, fakeJev(() => 0, seen));
     expect(seen).toHaveLength(0);
-    expect(output.stats).toMatchObject({ requests: 0, stateStage: '', calls: 0 });
+    expect(output.stats).toMatchObject({
+      requests: 0,
+      stateStage: '',
+      calls: 0,
+      estimatedTokensSaved: 0,
+      apiUsage: null,
+      costUsd: null,
+    });
     expect(output.messages).toEqual(messages);
   });
 
@@ -377,6 +425,7 @@ describe('compact', () => {
     const output = await compact(transcript(), fakeJev(() => 0.95), { preserveRecentMessages: 1 });
     expect(output.decisions.every((d) => d.action === 'keep')).toBe(true);
     expect(reductionRatio(output)).toBe(0);
+    expect(output.stats.apiUsage).toBeNull();
   });
 
   it('rejects malformed answers', async () => {

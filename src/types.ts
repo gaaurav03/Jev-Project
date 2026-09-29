@@ -135,6 +135,17 @@ export interface CompactResult {
     stateStage: string;
     requests: number;
     ms: number;
+    /** Estimates over the serialized transcript, not provider token counts. */
+    estimatedTokensBefore: number;
+    estimatedTokensAfter: number;
+    estimatedTokensSaved: number;
+    /** Complete provider-reported totals; an unreported field remains null. */
+    apiUsage: {
+      inputTokens: number | null;
+      outputTokens: number | null;
+    } | null;
+    /** Unknown until pricing for the returned model is verified. */
+    costUsd: number | null;
   };
 }
 
