@@ -245,7 +245,7 @@
 
   function validateCommunity(value) {
     const stats = object(value);
-    const counts = stats && [stats.installs, stats.activeInstalls30d, stats.compactions, stats.tokensSaved];
+    const counts = stats && [stats.runs, stats.installs, stats.activeInstalls30d, stats.compactions, stats.tokensSaved];
     if (!counts || counts.some((entry) => number(entry) === null) || !object(stats.modes)) {
       throw new Error('The community response has an unexpected shape.');
     }
@@ -255,6 +255,7 @@
   async function loadCommunity() {
     try {
       const stats = validateCommunity(await fetchJson('/api/community'));
+      if (stats.runs === 0) throw new Error('No community events yet.');
       setText('community-saved', formatNumber(stats.tokensSaved));
       setText('community-active', formatNumber(stats.activeInstalls30d));
       setText('community-installs', `${formatNumber(stats.installs)} anonymous installs in total`);

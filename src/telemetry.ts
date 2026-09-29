@@ -1,7 +1,7 @@
 import type { RunRecord } from './run-record.js';
 
 /** Must match `.claude-plugin/plugin.json`; a test keeps them in sync. */
-export const PLUGIN_VERSION = '0.4.0';
+export const PLUGIN_VERSION = '0.5.0';
 export const DEFAULT_TELEMETRY_URL = 'https://jev-project-bay.vercel.app/api/telemetry';
 export const TELEMETRY_TIMEOUT_MS = 3_000;
 export const MAX_TELEMETRY_BYTES = 1024;
