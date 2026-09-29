@@ -8,6 +8,7 @@ import type {
   CompactionState,
   JevAsker,
   JevQuestions,
+  JevResponse,
   Message,
   ResolvedCompactOptions,
   ToolCall,
@@ -118,18 +119,40 @@ async function askBatch(
   asker: JevAsker,
   state: CompactionState,
   batch: readonly ToolCall[],
-): Promise<Map<string, CallAnswer>> {
+): Promise<{ answers: Map<string, CallAnswer>; usage: JevResponse['usage'] }> {
   const questions: JevQuestions = Object.assign({}, ...batch.map(questionsFor));
-  const { answers } = await asker.ask(state, questions);
-  return new Map(
-    batch.map((call) => [
-      call.id,
-      {
-        keepCall: noulAnswer(answers, `call_${call.id}`),
-        keepResult: noulAnswer(answers, `result_${call.id}`),
-      },
-    ]),
-  );
+  const response = await asker.ask(state, questions);
+  return {
+    answers: new Map(
+      batch.map((call) => [
+        call.id,
+        {
+          keepCall: noulAnswer(response.answers, `call_${call.id}`),
+          keepResult: noulAnswer(response.answers, `result_${call.id}`),
+        },
+      ]),
+    ),
+    usage: response.usage,
+  };
+}
+
+function aggregateUsage(
+  usages: readonly JevResponse['usage'][],
+): CompactResult['stats']['apiUsage'] {
+  const total = (key: 'input_tokens' | 'output_tokens'): number | null => {
+    const values = usages.map((usage) => usage?.[key]);
+    return values.length > 0 &&
+      values.every(
+        (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
+      )
+      ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+      : null;
+  };
+  const inputTokens = total('input_tokens');
+  const outputTokens = total('output_tokens');
+  return inputTokens === null && outputTokens === null
+    ? null
+    : { inputTokens, outputTokens };
 }
 
 function truncatedResultText(text: string, isError: boolean, headChars: number): string {
@@ -264,10 +287,12 @@ export async function compact(
   const calls = collectToolCalls(messages, resolved.preserveRecentMessages);
   const candidates = calls.filter((call) => !call.pinned);
   const charsBefore = messages.reduce((sum, message) => sum + messageChars(message), 0);
+  const estimatedTokensBefore = estimateTokens(JSON.stringify(messages));
 
   let fitted: { tokens: number; stage: string } = { tokens: 0, stage: '' };
   let batches: ToolCall[][] = [];
   const answers = new Map<string, CallAnswer>();
+  let apiUsage: CompactResult['stats']['apiUsage'] = null;
   if (candidates.length > 0) {
     const state = fitState(messages, calls, resolved);
     fitted = state;
@@ -275,7 +300,10 @@ export async function compact(
     const answered = await Promise.all(
       batches.map((batch) => askBatch(asker, state.state, batch)),
     );
-    for (const map of answered) for (const [id, answer] of map) answers.set(id, answer);
+    apiUsage = aggregateUsage(answered.map((result) => result.usage));
+    for (const result of answered) {
+      for (const [id, answer] of result.answers) answers.set(id, answer);
+    }
   }
 
   const decisions = calls.map((call) =>
@@ -287,6 +315,7 @@ export async function compact(
     calls,
     resolved.truncateHeadChars,
   );
+  const estimatedTokensAfter = estimateTokens(JSON.stringify(kept));
   return {
     messages: kept,
     decisions,
@@ -304,6 +333,11 @@ export async function compact(
       stateStage: fitted.stage,
       requests: batches.length,
       ms: Date.now() - started,
+      estimatedTokensBefore,
+      estimatedTokensAfter,
+      estimatedTokensSaved: estimatedTokensBefore - estimatedTokensAfter,
+      apiUsage,
+      costUsd: null,
     },
   };
 }
