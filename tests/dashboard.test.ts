@@ -102,10 +102,29 @@ describe('dashboard API', () => {
       expect(address.address).toBe('127.0.0.1');
       const base = `http://127.0.0.1:${address.port}`;
 
+      const pageResponse = await fetch(base + '/');
+      const page = await pageResponse.text();
+      expect(pageResponse.status).toBe(200);
+      expect(pageResponse.headers.get('content-type')).toContain('text/html');
+      expect(pageResponse.headers.get('content-security-policy')).toContain("script-src 'self'");
+      expect(page).toContain('Context stays');
+      expect(page).not.toMatch(/https?:\/\//);
+
+      const css = await (await fetch(base + '/dashboard.css')).text();
+      expect(css).toContain(':root[data-theme="dark"]');
+      expect(css).toContain('@media (max-width: 768px)');
+      expect(css).toContain('@media (max-width: 520px)');
+
+      const scriptResponse = await fetch(base + '/dashboard.js');
+      const script = await scriptResponse.text();
+      expect(scriptResponse.headers.get('content-type')).toContain('text/javascript');
+      expect(script).toContain('textContent');
+      expect(script).not.toContain('innerHTML');
+
       const summaryResponse = await fetch(base + '/api/summary');
       const summary = await summaryResponse.json();
       expect(summaryResponse.status).toBe(200);
-      expect(summaryResponse.headers.get('content-security-policy')).toContain("default-src 'none'");
+      expect(summaryResponse.headers.get('content-security-policy')).toContain("default-src 'self'");
       expect(summaryResponse.headers.get('x-content-type-options')).toBe('nosniff');
       expect(summaryResponse.headers.get('referrer-policy')).toBe('no-referrer');
       expect(summary).toMatchObject({
