@@ -197,6 +197,16 @@ Table output is the default; `--json` emits the complete machine-readable report
 Benchmark JSON cannot provide executable commands. It can only select a command
 from the reviewed catalog in src/benchmark.ts.
 
+## Run history
+
+Live Claude compactions and benchmark cases append versioned records to
+`.jev/runs.jsonl`. The directory is ignored by Git. Records contain timestamps,
+mode, status, controlled fallback reasons, metrics, and decision metadata only;
+prompts, tool inputs, API keys, and raw tool output are never stored.
+
+`readRuns()` returns newest records first, skips malformed JSONL lines, and
+bounds reads to 1,000 records and the newest 4 MiB of the file.
+
 ## Development
 
 ```sh

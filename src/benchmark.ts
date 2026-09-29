@@ -1,4 +1,4 @@
-import type { CompactResult, CompactionMode, Message } from './types.js';
+import type { CallDecision, CompactResult, CompactionMode, Message } from './types.js';
 
 export const MAX_BENCHMARK_BYTES = 1_000_000;
 
@@ -293,6 +293,7 @@ export interface BenchmarkCaseResult {
   requests: number;
   apiUsage: CompactResult['stats']['apiUsage'];
   costUsd: number | null;
+  decisions: CallDecision[];
 }
 
 export interface BenchmarkReport {
@@ -358,6 +359,7 @@ export async function runBenchmarkSuite(
       requests: compacted.stats.requests,
       apiUsage: compacted.stats.apiUsage,
       costUsd: compacted.stats.costUsd,
+      decisions: compacted.decisions,
     });
   }
 

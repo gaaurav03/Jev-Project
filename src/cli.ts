@@ -10,6 +10,8 @@ import {
   type ReviewedVerification,
 } from './benchmark.js';
 import { compactMessages } from './messages.js';
+import { createRunRecord } from './run-record.js';
+import { appendRun } from './run-store.js';
 import type { CompactionMode } from './types.js';
 
 type CliOptions = {
@@ -100,6 +102,36 @@ async function main(): Promise<void> {
       ),
     ),
   );
+  for (const report of reports) {
+    for (const result of report.results) {
+      await appendRun(
+        createRunRecord({
+          source: 'benchmark',
+          mode: report.mode,
+          status: result.taskPassed ? 'passed' : 'failed',
+          fallbackReason: null,
+          metrics: {
+            estimatedTokensBefore: result.estimatedTokensBefore,
+            estimatedTokensAfter: result.estimatedTokensAfter,
+            estimatedTokensSaved: result.estimatedTokensSaved,
+            estimatedReduction: result.estimatedReduction,
+            latencyMs: result.latencyMs,
+            requests: result.requests,
+            apiUsage: result.apiUsage,
+            costUsd: result.costUsd,
+            criticalRetention: {
+              required: result.criticalRetention.required,
+              retained: result.criticalRetention.retained,
+              ratio: result.criticalRetention.ratio,
+            },
+            taskPassed: result.taskPassed,
+          },
+          decisions: result.decisions,
+          benchmark: { caseId: result.id, category: result.category },
+        }),
+      );
+    }
+  }
   const output = options.json
     ? JSON.stringify(reports.length === 1 ? reports[0] : { version: 1, reports }, null, 2)
     : reports
