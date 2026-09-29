@@ -1,11 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  compact,
+  formatBenchmarkTable,
   parseBenchmarkSuite,
   parseBenchmarkSuiteJson,
   reviewedVerification,
   scoreCriticalRetention,
+  runBenchmarkSuite,
   type BenchmarkCase,
+  type JevAsker,
   type Message,
 } from '../src/index.js';
 
@@ -123,5 +127,52 @@ describe('benchmark cases', () => {
     expect(score.ratio).toBe(1);
     expect(score.incorrectlyRemovedCalls).toEqual([]);
     expect(score.incorrectlyRemovedResults).toEqual([]);
+  });
+});
+describe('benchmark runner', () => {
+  it('aggregates Jev metrics, retention, task pass rate, and readable output', async () => {
+    const suite = parseBenchmarkSuiteJson(fixtureJson);
+    const asker: JevAsker = {
+      async ask(_state, questions) {
+        return {
+          answers: Object.fromEntries(
+            Object.keys(questions).map((key) => [
+              key,
+              { type: 'noul' as const, noul: 0.9 },
+            ]),
+          ),
+          usage: { input_tokens: 10, output_tokens: 2 },
+        };
+      },
+    };
+    const report = await runBenchmarkSuite(
+      suite,
+      (benchmark) =>
+        compact(benchmark.messages, asker, {
+          preserveRecentMessages: 1,
+        }),
+      async (_verification, benchmark) => benchmark.id !== 'required-error',
+    );
+
+    expect(report.summary).toMatchObject({
+      cases: 4,
+      criticalRequired: 8,
+      criticalRetained: 8,
+      criticalRetention: 1,
+      tasksPassed: 3,
+      taskPassRate: 0.75,
+      requests: 4,
+      apiUsage: { inputTokens: 40, outputTokens: 8 },
+      costUsd: null,
+    });
+    expect(report.results).toHaveLength(4);
+    expect(JSON.parse(JSON.stringify(report))).toEqual(report);
+
+    const table = formatBenchmarkTable(report);
+    expect(table).toContain('Est. reduction');
+    expect(table).toContain('Usage in/out');
+    expect(table).toContain('required-error');
+    expect(table).toContain('TOTAL');
+    expect(table).toContain('3/4');
   });
 });
