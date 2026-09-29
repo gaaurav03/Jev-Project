@@ -1,9 +1,11 @@
 {
-  "name": "fast-jev-compaction",
-  "version": "0.2.0",
+  "name": "fast-jev-plus",
+  "version": "0.6.0",
   "description": "Continuous, verbatim context compaction for LLM agents using TypeSafe's Jev model.",
   "type": "module",
   "license": "MIT",
+  "author": "Gaurav Gupta (https://github.com/gaaurav03)",
+  "repository": { "type": "git", "url": "git+https://github.com/gaaurav03/Jev-Project.git" },
   "engines": {
     "node": ">=18"
   },
@@ -21,6 +23,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "prepare": "tsc",
     "typecheck": "tsc --noEmit && npm run typecheck:hooks",
     "test": "vitest run",
     "demo": "tsx examples/demo.ts",

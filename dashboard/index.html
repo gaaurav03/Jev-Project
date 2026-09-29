@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#141517">
-  <meta name="description" content="fast-jev-compaction: a Claude Code plugin that prunes stale tool calls instead of summarizing, keeps everything else verbatim, and publishes privacy-safe live metrics.">
-  <title>fast-jev-compaction — verbatim context compaction for Claude Code</title>
+  <meta name="description" content="fast-jev-plus: a Claude Code plugin that prunes stale tool calls instead of summarizing, keeps everything else verbatim, and publishes privacy-safe live metrics.">
+  <title>fast-jev-plus — verbatim context compaction for Claude Code</title>
   <link rel="stylesheet" href="/dashboard.css">
   <script src="/dashboard.js" defer></script>
 </head>
 <body>
   <header class="topbar" id="topbar">
     <div class="nav-inner">
-      <a class="brand" href="#overview" aria-label="fast-jev-compaction home">
+      <a class="brand" href="#overview" aria-label="fast-jev-plus home">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
         <span>jev</span>
       </a>
@@ -52,7 +52,7 @@
     <section class="hero container" id="overview">
       <div class="eyebrow"><i aria-hidden="true"></i>claude code plugin · mit · open source</div>
       <h1>Long sessions. <span class="accent-orange">Lean context.</span><br><span class="accent-blue">Nothing rewritten.</span></h1>
-      <p class="hero-copy">fast-jev-compaction replaces Claude Code's lossy compaction summary with verbatim pruning. Stale tool calls and results are removed; every message that stays is kept word for word.</p>
+      <p class="hero-copy">fast-jev-plus replaces Claude Code's lossy compaction summary with verbatim pruning. Stale tool calls and results are removed; every message that stays is kept word for word.</p>
 
       <div class="install-box">
         <div class="install-line">
@@ -62,7 +62,7 @@
         </div>
         <div class="install-line">
           <span class="prompt" aria-hidden="true">$</span>
-          <code id="install-command-2">claude plugin install fast-jev-compaction@fast-jev-compaction</code>
+          <code id="install-command-2">claude plugin install fast-jev-plus@fast-jev-plus</code>
           <button class="copy-button" type="button" data-copy="install-command-2" aria-label="Copy install command">copy</button>
         </div>
       </div>
@@ -247,7 +247,7 @@
               <h3>Install the plugin</h3>
               <p>From a terminal, or as slash commands inside Claude Code.</p>
               <pre class="code-block"><code>claude plugin marketplace add gaaurav03/Jev-Project
-claude plugin install fast-jev-compaction@fast-jev-compaction</code></pre>
+claude plugin install fast-jev-plus@fast-jev-plus</code></pre>
             </div>
           </article>
           <article class="step">
@@ -288,12 +288,12 @@ npm run dashboard              # private dashboard on 127.0.0.1</code></pre>
         <div class="shots">
           <figure class="canvas shot">
             <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>/plugin</strong><span>installed</span></header>
-            <img src="/assets/plugin-installed.png" width="1307" height="947" loading="lazy" alt="Claude Code plugin manager listing fast-jev-compaction as an installed user plugin, enabled with a green check.">
+            <img src="/assets/plugin-installed.png" width="1307" height="947" loading="lazy" alt="Claude Code plugin manager showing the plugin installed and enabled with a green check.">
             <figcaption>Installed from the repository's marketplace, next to Claude Code's built-in plugins.</figcaption>
           </figure>
           <figure class="canvas shot">
             <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>/compact</strong><span>fallback</span></header>
-            <img src="/assets/compact-toast.png" width="1262" height="606" loading="lazy" alt="Claude Code terminal after /compact: fast-jev-compaction logs its decisions and a toast reports a fallback to the built-in summary because a 10% reduction was below the minimum.">
+            <img src="/assets/compact-toast.png" width="1262" height="606" loading="lazy" alt="Claude Code terminal after /compact: the plugin logs its decisions and a toast reports a fallback to the built-in summary because a 10% reduction was below the minimum.">
             <figcaption>When a session is too short to save much, it says so and falls back to Claude's own summary instead of forcing a weak result.</figcaption>
           </figure>
         </div>
@@ -451,21 +451,21 @@ npm run dashboard              # private dashboard on 127.0.0.1</code></pre>
         <header class="section-head">
           <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>08 / compare</span></div>
           <h2>How it differs.</h2>
-          <p>This project is a fork of <a class="text-link" href="https://github.com/tamaratran/fast-jev-compaction" rel="noopener">tamaratran/fast-jev-compaction</a>, which introduced Jev-guided verbatim pruning.</p>
+          <p>Claude Code's built-in compaction asks a model to summarize old turns. fast-jev-plus keeps the original messages and only removes what is stale.</p>
         </header>
         <div class="canvas">
           <div class="table-scroll">
             <table class="compare-table">
-              <thead><tr><th>capability</th><th>claude built-in /compact</th><th>upstream fast-jev</th><th>this fork</th></tr></thead>
+              <thead><tr><th>capability</th><th>claude built-in /compact</th><th>fast-jev-plus</th></tr></thead>
               <tbody>
-                <tr><td>How history shrinks</td><td>LLM-written summary</td><td>verbatim pruning via Jev</td><td>verbatim pruning via Jev or local rules</td></tr>
-                <tr><td>Exact paths, errors, commands</td><td><span class="no">can be lost in the summary</span></td><td><span class="yes">kept unless pruned</span></td><td><span class="yes">kept unless pruned</span></td></tr>
-                <tr><td>Works without an extra API key</td><td><span class="yes">yes</span></td><td><span class="no">no</span></td><td><span class="yes">yes, local mode</span></td></tr>
-                <tr><td>Secrets redacted before sending</td><td><span class="na">n/a</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
-                <tr><td>Falls back when savings are small</td><td><span class="na">n/a</span></td><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td></tr>
-                <tr><td>Per-run metrics and history</td><td><span class="no">no</span></td><td><span class="no">toast only</span></td><td><span class="yes">yes</span></td></tr>
-                <tr><td>Retention benchmark</td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
-                <tr><td>Dashboard and public metrics</td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>How history shrinks</td><td>LLM-written summary</td><td>verbatim pruning via Jev or local rules</td></tr>
+                <tr><td>Exact paths, errors, commands</td><td><span class="no">can be lost in the summary</span></td><td><span class="yes">kept unless pruned</span></td></tr>
+                <tr><td>Works without an extra API key</td><td><span class="yes">yes</span></td><td><span class="yes">yes, local mode</span></td></tr>
+                <tr><td>Secrets redacted before sending</td><td><span class="na">n/a</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Falls back when savings are small</td><td><span class="na">n/a</span></td><td><span class="yes">yes, to the built-in summary</span></td></tr>
+                <tr><td>Per-run metrics and history</td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Retention benchmark</td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Dashboard and public metrics</td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -509,14 +509,13 @@ npm run dashboard              # private dashboard on 127.0.0.1</code></pre>
   <footer class="footer">
     <div class="container footer-grid">
       <div>
-        <span class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span>fast-jev-compaction</span></span>
-        <p>Verbatim context compaction for Claude Code. MIT licensed.</p>
+        <span class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span>fast-jev-plus</span></span>
+        <p>Verbatim context compaction for Claude Code. Built by Gaurav Gupta. MIT licensed.</p>
       </div>
       <nav aria-label="Footer links">
         <a href="https://github.com/gaaurav03/Jev-Project" rel="noopener">github</a>
         <a href="https://github.com/gaaurav03/Jev-Project#readme" rel="noopener">docs</a>
         <a href="https://github.com/gaaurav03/Jev-Project/blob/main/LICENSE" rel="noopener">license</a>
-        <a href="https://github.com/tamaratran/fast-jev-compaction" rel="noopener">upstream project</a>
         <a href="#privacy">privacy</a>
       </nav>
     </div>
