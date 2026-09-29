@@ -16,6 +16,15 @@ import {
 } from '../src/cloud.js';
 import { LocalAsker } from '../src/local.js';
 import {
+  isInstallId,
+  newInstallId,
+  TELEMETRY_NOTICE,
+  TELEMETRY_TIMEOUT_MS,
+  telemetryEnabled,
+  telemetryUrl,
+  toTelemetryEvent,
+} from '../src/telemetry.js';
+import {
   compactRunMetrics,
   createRunRecord,
   DEFAULT_RUN_HISTORY_PATH,
@@ -85,6 +94,7 @@ export type HookConfig = CompactOptions & {
   compactAtPercent: number;
   minReductionRatio: number;
   model: string;
+  telemetry: boolean;
 };
 
 function optionNumber(options: PluginOptions, key: string, fallback: number): number {
@@ -121,6 +131,7 @@ export function resolveHookConfig(options: PluginOptions): HookConfig {
       HOOK_DEFAULTS.minReductionRatio,
     ),
     model: optionString(options, 'model') ?? HOOK_DEFAULTS.model,
+    telemetry: options['telemetry'] !== false,
   };
   const apiKey = optionString(options, 'apiKey');
   if (apiKey) config.apiKey = apiKey;
@@ -311,22 +322,85 @@ function fallbackReason(error: unknown): RunFallbackReason {
   return 'compaction_error';
 }
 
+type RecordHost = {
+  fs: {
+    exists: (path: string) => Promise<boolean>;
+    read: (path: string) => Promise<string>;
+    write: (path: string, text: string) => Promise<void>;
+  };
+  session: {
+    cwd: () => Promise<string>;
+    repo: () => Promise<{ root: string } | null>;
+  };
+  ui: { log: (text: string) => void };
+  env: { get: (name: string) => Promise<string | undefined> };
+  http: { fetch: HookFetch };
+  clock: { after: HookTimer };
+  store: {
+    get: (key: string) => Promise<unknown>;
+    set: (key: string, value: unknown) => Promise<void>;
+  };
+};
+
+/**
+ * Sends one anonymous community event unless the user opted out. The first
+ * call only creates the install ID and shows the notice; nothing is sent.
+ */
+export async function sendTelemetry(
+  $: RecordHost,
+  config: HookConfig,
+  record: RunRecord,
+): Promise<void> {
+  const enabled = telemetryEnabled({
+    option: config.telemetry,
+    jevTelemetry: await $.env.get('JEV_TELEMETRY'),
+    doNotTrack: await $.env.get('DO_NOT_TRACK'),
+  });
+  if (!enabled) return;
+  const installId = await $.store.get('installId');
+  if (!isInstallId(installId)) {
+    await $.store.set('installId', newInstallId());
+    $.ui.log(TELEMETRY_NOTICE);
+    return;
+  }
+  const event = toTelemetryEvent(record, installId);
+  if (!event) return;
+  const url = telemetryUrl(await $.env.get('JEV_TELEMETRY_URL'));
+  await withHookTimeout(
+    $.http.fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(event),
+    }),
+    (ms, fn) => $.clock.after(ms, fn),
+    TELEMETRY_TIMEOUT_MS,
+    'Telemetry timed out',
+  );
+}
+
+async function uploadOwnRun($: RecordHost, record: RunRecord): Promise<void> {
+  try {
+    const enabled = await $.env.get('JEV_CLOUD_UPLOAD');
+    if (enabled !== '1') return;
+    const cloud = cloudUploadConfig(
+      enabled,
+      await $.env.get('JEV_CLOUD_INGEST_URL'),
+      await $.env.get('JEV_CLOUD_INGEST_TOKEN'),
+    );
+    if (!cloud) return;
+    await withHookTimeout(
+      uploadCloudRun(record, cloud, (url, init) => $.http.fetch(url, init)),
+      (ms, fn) => $.clock.after(ms, fn),
+      CLOUD_UPLOAD_TIMEOUT_MS,
+      'Cloud upload timed out',
+    );
+  } catch {
+    $.ui.log('cloud upload unavailable; local history was saved');
+  }
+}
+
 export async function recordLiveRun(
-  $: {
-    fs: {
-      exists: (path: string) => Promise<boolean>;
-      read: (path: string) => Promise<string>;
-      write: (path: string, text: string) => Promise<void>;
-    };
-    session: {
-      cwd: () => Promise<string>;
-      repo: () => Promise<{ root: string } | null>;
-    };
-    ui: { log: (text: string) => void };
-    env: { get: (name: string) => Promise<string | undefined> };
-    http: { fetch: HookFetch };
-    clock: { after: HookTimer };
-  },
+  $: RecordHost,
   config: HookConfig,
   status: RunStatus,
   reason: RunFallbackReason | null,
@@ -353,24 +427,11 @@ export async function recordLiveRun(
     return;
   }
 
-  try {
-    const enabled = await $.env.get('JEV_CLOUD_UPLOAD');
-    if (enabled !== '1') return;
-    const cloud = cloudUploadConfig(
-      enabled,
-      await $.env.get('JEV_CLOUD_INGEST_URL'),
-      await $.env.get('JEV_CLOUD_INGEST_TOKEN'),
-    );
-    if (!cloud) return;
-    await withHookTimeout(
-      uploadCloudRun(record, cloud, (url, init) => $.http.fetch(url, init)),
-      (ms, fn) => $.clock.after(ms, fn),
-      CLOUD_UPLOAD_TIMEOUT_MS,
-      'Cloud upload timed out',
-    );
-  } catch {
-    $.ui.log('cloud upload unavailable; local history was saved');
-  }
+  // Both uploads run together after the local write; telemetry failures stay silent.
+  await Promise.all([
+    uploadOwnRun($, record),
+    sendTelemetry($, config, record).catch(() => undefined),
+  ]);
 }
 
 export const register: Register = (on: On, options: PluginOptions) => {

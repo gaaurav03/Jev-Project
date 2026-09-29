@@ -24,6 +24,21 @@ ingestion token. Vercel needs `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
 `JEV_CLOUD_UPLOAD=1`, `JEV_CLOUD_INGEST_URL`, and the matching ingestion token.
 The browser never receives either secret.
 
+## Community telemetry
+
+Run `migrations/20260930120000_create_telemetry_events.sql` once in the SQL
+Editor, the same way. It creates `public.telemetry_events` (anonymous install
+ID, mode, status, token estimates, and a daily-rotating source hash for rate
+limiting; no IP addresses) and two functions:
+
+- `record_telemetry(...)` inserts one event unless that install sent 120 or
+  that source sent 600 in the last hour.
+- `community_stats()` returns the public totals and a 30-day daily series.
+
+RLS is enabled and the table and both functions are revoked from `public`,
+`anon`, and `authenticated`; only `service_role` (Vercel) can call them. No new
+Vercel variables are needed.
+
 ## Connect Vercel
 
 Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and

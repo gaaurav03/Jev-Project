@@ -52,6 +52,33 @@
         <span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to run history…</span>
       </div>
 
+      <div class="community" id="community" hidden>
+        <p class="strip-head"><span>community · all users</span><span id="community-meta">anonymous, opt-out usage counts</span></p>
+        <div class="stats-strip">
+          <article class="stat-panel">
+            <p class="stat-label"><i class="orange" aria-hidden="true"></i>context saved</p>
+            <p class="stat-value" id="community-saved">—</p>
+            <p class="stat-note">Estimated tokens removed by applied compactions</p>
+          </article>
+          <article class="stat-panel">
+            <p class="stat-label"><i class="blue" aria-hidden="true"></i>active installs</p>
+            <p class="stat-value" id="community-active">—</p>
+            <p class="stat-note" id="community-installs">Sent at least one event in 30 days</p>
+          </article>
+          <article class="stat-panel">
+            <p class="stat-label"><i class="green" aria-hidden="true"></i>compactions</p>
+            <p class="stat-value" id="community-compactions">—</p>
+            <p class="stat-note" id="community-modes">Applied across all users</p>
+          </article>
+          <article class="stat-panel">
+            <p class="stat-label"><i aria-hidden="true"></i>average reduction</p>
+            <p class="stat-value" id="community-reduction">—</p>
+            <p class="stat-note">Per applied compaction</p>
+          </article>
+        </div>
+      </div>
+
+      <p class="strip-head"><span id="runs-scope">recorded runs &amp; benchmarks</span></p>
       <div class="stats-strip" id="overview-cards" aria-busy="true">
         <article class="stat-panel">
           <p class="stat-label"><i class="orange" aria-hidden="true"></i>estimated tokens saved</p>
@@ -214,6 +241,7 @@
         </header>
         <div class="about-copy">
           <p>This dashboard displays constrained metrics only. Public responses omit exact run IDs, benchmark identifiers, tool names, prompts, secrets, and raw tool output.</p>
+          <p>Community totals come from anonymous, opt-out counts: a random install ID, mode, status, and token estimates per compaction. Opt out with <code>JEV_TELEMETRY=0</code> or <code>DO_NOT_TRACK=1</code>.</p>
           <p>Token figures are estimates. API usage and cost remain unknown unless the provider reports them.</p>
         </div>
       </div>
