@@ -207,6 +207,26 @@ prompts, tool inputs, API keys, and raw tool output are never stored.
 `readRuns()` returns newest records first, skips malformed JSONL lines, and
 bounds reads to 1,000 records and the newest 4 MiB of the file.
 
+## Dashboard API
+
+Start the local API from the repository root:
+
+~~~powershell
+npm.cmd run dashboard
+npm.cmd run dashboard -- 4310
+~~~
+
+It binds only to `127.0.0.1`. The default port is `4310`.
+
+- `GET /api/summary` returns overview cards, Jev/local comparisons, and trends.
+- `GET /api/runs` returns bounded run summaries. Filters: `mode`, `status`,
+  `from`, `to`, and `limit` (maximum 200).
+- `GET /api/runs/:id` returns one safe record with decision metadata.
+
+All endpoints read real records from `.jev/runs.jsonl`, return JSON only, apply
+security headers, and never return prompts, tool inputs, API keys, or raw tool
+output.
+
 ## Development
 
 ```sh
