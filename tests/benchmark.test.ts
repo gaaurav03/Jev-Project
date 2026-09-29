@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   compact,
+  compactMessages,
   formatBenchmarkTable,
   parseBenchmarkSuite,
   parseBenchmarkSuiteJson,
@@ -154,6 +155,7 @@ describe('benchmark runner', () => {
       async (_verification, benchmark) => benchmark.id !== 'required-error',
     );
 
+    expect(report.mode).toBe('jev');
     expect(report.summary).toMatchObject({
       cases: 4,
       criticalRequired: 8,
@@ -174,5 +176,26 @@ describe('benchmark runner', () => {
     expect(table).toContain('required-error');
     expect(table).toContain('TOTAL');
     expect(table).toContain('3/4');
+  });
+
+  it('runs the identical validated cases in local mode', async () => {
+    const suite = parseBenchmarkSuiteJson(fixtureJson);
+    const report = await runBenchmarkSuite(
+      suite,
+      (benchmark) =>
+        compactMessages(benchmark.messages, {
+          mode: 'local',
+          preserveRecentMessages: 1,
+        }),
+      async () => true,
+      'local',
+    );
+
+    expect(report.mode).toBe('local');
+    expect(report.results.map((result) => result.id)).toEqual(
+      suite.cases.map((benchmark) => benchmark.id),
+    );
+    expect(report.summary.requests).toBe(0);
+    expect(report.summary.apiUsage).toBeNull();
   });
 });

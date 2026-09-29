@@ -1,4 +1,4 @@
-import type { CompactResult, Message } from './types.js';
+import type { CompactResult, CompactionMode, Message } from './types.js';
 
 export const MAX_BENCHMARK_BYTES = 1_000_000;
 
@@ -297,7 +297,7 @@ export interface BenchmarkCaseResult {
 
 export interface BenchmarkReport {
   version: 1;
-  mode: 'jev';
+  mode: CompactionMode;
   results: BenchmarkCaseResult[];
   summary: {
     cases: number;
@@ -331,6 +331,7 @@ export async function runBenchmarkSuite(
   suite: BenchmarkSuite,
   compactCase: BenchmarkCompactor,
   verifyCase: BenchmarkVerifier,
+  mode: CompactionMode = 'jev',
 ): Promise<BenchmarkReport> {
   const results: BenchmarkCaseResult[] = [];
   for (const benchmark of suite.cases) {
@@ -387,7 +388,7 @@ export async function runBenchmarkSuite(
 
   return {
     version: 1,
-    mode: 'jev',
+    mode,
     results,
     summary: {
       cases: results.length,
