@@ -207,9 +207,9 @@ prompts, tool inputs, API keys, and raw tool output are never stored.
 `readRuns()` returns newest records first, skips malformed JSONL lines, and
 bounds reads to 1,000 records and the newest 4 MiB of the file.
 
-## Dashboard API
+## Local dashboard
 
-Start the local API from the repository root:
+Start the local dashboard from the repository root:
 
 ~~~powershell
 npm.cmd run dashboard
@@ -217,6 +217,11 @@ npm.cmd run dashboard -- 4310
 ~~~
 
 It binds only to `127.0.0.1`. The default port is `4310`.
+
+Open `http://127.0.0.1:4310` to view the Kyu-inspired overview, Jev/local
+comparison, trends, benchmark signals, filterable run history, and per-run
+decision details. The interface supports light and dark themes and responsive
+desktop, tablet, and mobile layouts.
 
 - `GET /api/summary` returns overview cards, Jev/local comparisons, and trends.
 - `GET /api/runs` returns bounded run summaries. Filters: `mode`, `status`,

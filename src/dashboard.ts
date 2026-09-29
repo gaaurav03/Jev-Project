@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises';
 import { createServer, type Server, type ServerResponse } from 'node:http';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   DEFAULT_RUN_HISTORY_PATH,
@@ -15,10 +18,18 @@ export const MAX_API_RUNS = 200;
 
 const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
-  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
 };
+
+const DASHBOARD_DIRECTORY = fileURLToPath(new URL('../dashboard/', import.meta.url));
+const DASHBOARD_ASSETS = new Map<string, [string, string]>([
+  ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/index.html', ['index.html', 'text/html; charset=utf-8']],
+  ['/dashboard.css', ['dashboard.css', 'text/css; charset=utf-8']],
+  ['/dashboard.js', ['dashboard.js', 'text/javascript; charset=utf-8']],
+]);
 
 const MODES: readonly CompactionMode[] = ['jev', 'local'];
 const STATUSES: readonly RunStatus[] = ['applied', 'fallback', 'passed', 'failed'];
@@ -177,6 +188,24 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(body);
 }
 
+async function sendAsset(
+  response: ServerResponse,
+  fileName: string,
+  contentType: string,
+): Promise<void> {
+  const body = await readFile(join(DASHBOARD_DIRECTORY, fileName));
+  if (body.byteLength > MAX_API_RESPONSE_BYTES) {
+    sendJson(response, 413, { error: 'Response too large' });
+    return;
+  }
+  response.writeHead(200, {
+    ...SECURITY_HEADERS,
+    'Content-Length': body.byteLength,
+    'Content-Type': contentType,
+  });
+  response.end(body);
+}
+
 function one(search: URLSearchParams, name: string): string | undefined {
   const values = search.getAll(name);
   if (values.length > 1) throw new HttpError(400, `Duplicate ${name} filter`);
@@ -263,6 +292,11 @@ export function createDashboardServer(
         return;
       }
       const url = new URL(request.url, `http://${DASHBOARD_HOST}`);
+      const asset = DASHBOARD_ASSETS.get(url.pathname);
+      if (asset) {
+        await sendAsset(response, ...asset);
+        return;
+      }
       if (url.pathname === '/api/summary') {
         requireNoQuery(url);
         sendJson(response, 200, summarizeRuns(await readRuns(historyPath, 1_000)));

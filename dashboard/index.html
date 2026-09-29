@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141517">
+  <meta name="description" content="Local observability dashboard for Jev context compaction.">
+  <title>Jev — compaction dashboard</title>
+  <link rel="stylesheet" href="/dashboard.css">
+  <script src="/dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar" id="topbar">
+    <div class="nav-inner">
+      <a class="brand" href="#overview" aria-label="Jev dashboard home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+        <span>jev</span>
+      </a>
+      <nav class="nav-links" aria-label="Dashboard sections">
+        <a class="active" href="#overview">overview</a>
+        <a href="#telemetry">telemetry</a>
+        <a href="#runs">runs</a>
+        <a href="#benchmarks">benchmarks</a>
+        <a href="#about">about</a>
+      </nav>
+      <div class="nav-actions">
+        <span class="local-badge"><i aria-hidden="true"></i>127.0.0.1</span>
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch color theme">
+          <span aria-hidden="true">◐</span>
+        </button>
+        <button class="menu-button" id="menu-toggle" type="button" aria-controls="mobile-menu" aria-expanded="false" aria-label="Open menu">
+          <i></i><i></i><i></i>
+        </button>
+      </div>
+    </div>
+    <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile dashboard sections">
+      <a href="#overview">overview</a>
+      <a href="#telemetry">telemetry</a>
+      <a href="#runs">runs</a>
+      <a href="#benchmarks">benchmarks</a>
+      <a href="#about">about</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero container" id="overview">
+      <div class="eyebrow"><i aria-hidden="true"></i>local compaction observability</div>
+      <h1>Context stays <span class="accent-orange">lean.</span><br>Decisions stay <span class="accent-blue">visible.</span></h1>
+      <p class="hero-copy">Inspect estimated savings, benchmark retention, and every safe compaction decision from your local run history.</p>
+      <div class="hero-actions">
+        <button class="button primary" id="refresh-button" type="button">↻ refresh data</button>
+        <span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to local history…</span>
+      </div>
+
+      <div class="stats-strip" id="overview-cards" aria-busy="true">
+        <article class="stat-panel">
+          <p class="stat-label"><i class="orange" aria-hidden="true"></i>estimated tokens saved</p>
+          <p class="stat-value" id="tokens-saved">—</p>
+          <p class="stat-note">Estimated from transcript characters</p>
+        </article>
+        <article class="stat-panel">
+          <p class="stat-label"><i class="blue" aria-hidden="true"></i>average reduction</p>
+          <p class="stat-value" id="average-reduction">—</p>
+          <p class="stat-note">Across runs with recorded metrics</p>
+        </article>
+        <article class="stat-panel">
+          <p class="stat-label"><i class="green" aria-hidden="true"></i>critical retention</p>
+          <p class="stat-value" id="critical-retention">—</p>
+          <p class="stat-note">Labelled benchmark information kept</p>
+        </article>
+        <article class="stat-panel">
+          <p class="stat-label"><i aria-hidden="true"></i>task pass rate</p>
+          <p class="stat-value" id="task-pass-rate">—</p>
+          <p class="stat-note">Deterministic benchmark verification</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="container">
+      <div class="notice error" id="page-error" role="alert" hidden>
+        <strong>Dashboard data is unavailable.</strong>
+        <span id="page-error-message">Check that the local server is running and try again.</span>
+      </div>
+      <div class="notice" id="page-empty" hidden>
+        <strong>No run history yet.</strong>
+        <span>Run a benchmark or compact a Claude Code session, then refresh this page.</span>
+      </div>
+    </div>
+
+    <section class="section" id="telemetry">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>01 / telemetry</span></div>
+          <h2>Signal, not guesswork.</h2>
+          <p>Reduction and latency come directly from local run records. Missing values stay visibly unavailable.</p>
+        </header>
+
+        <div class="telemetry-grid">
+          <article class="canvas trend-panel">
+            <header class="canvas-bar">
+              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <strong>run-trends.svg</strong>
+              <span id="trend-meta">loading trend data…</span>
+            </header>
+            <div class="chart-wrap">
+              <svg id="trend-chart" viewBox="0 0 720 280" role="img" aria-labelledby="trend-title trend-description">
+                <title id="trend-title">Reduction and latency trends</title>
+                <desc id="trend-description">Reduction percentage in blue and latency in orange across recent runs.</desc>
+                <g class="chart-grid" aria-hidden="true">
+                  <path d="M48 28H696M48 88H696M48 148H696M48 208H696M48 256H696"></path>
+                  <path d="M48 28V256M210 28V256M372 28V256M534 28V256M696 28V256"></path>
+                </g>
+                <path class="chart-line reduction" id="reduction-line"></path>
+                <path class="chart-line latency" id="latency-line"></path>
+                <g id="trend-points"></g>
+              </svg>
+              <p class="chart-empty" id="trend-empty" hidden>No measured runs yet.</p>
+            </div>
+            <footer class="canvas-status">
+              <span><i class="legend-line blue"></i>estimated reduction</span>
+              <span><i class="legend-line orange"></i>latency</span>
+              <span class="push-right">oldest → newest</span>
+            </footer>
+          </article>
+
+          <article class="canvas comparison-panel">
+            <header class="canvas-bar">
+              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <strong>mode-comparison.json</strong>
+              <span>jev · local</span>
+            </header>
+            <div class="comparison-body">
+              <section class="mode-lane jev-lane">
+                <header><span>JEV</span><b id="jev-runs">— runs</b></header>
+                <dl>
+                  <div><dt>avg reduction</dt><dd id="jev-reduction">—</dd></div>
+                  <div><dt>avg latency</dt><dd id="jev-latency">—</dd></div>
+                  <div><dt>tokens saved</dt><dd id="jev-saved">—</dd></div>
+                </dl>
+              </section>
+              <section class="mode-lane local-lane">
+                <header><span>LOCAL</span><b id="local-runs">— runs</b></header>
+                <dl>
+                  <div><dt>avg reduction</dt><dd id="local-reduction">—</dd></div>
+                  <div><dt>avg latency</dt><dd id="local-latency">—</dd></div>
+                  <div><dt>tokens saved</dt><dd id="local-saved">—</dd></div>
+                </dl>
+              </section>
+              <div class="ops-grid">
+                <div><span>API requests</span><strong id="api-requests">—</strong></div>
+                <div><span>known cost</span><strong id="known-cost">—</strong></div>
+                <div><span>input tokens</span><strong id="input-tokens">—</strong></div>
+                <div><span>output tokens</span><strong id="output-tokens">—</strong></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="runs">
+      <div class="container">
+        <header class="section-head compact">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>02 / run history</span></div>
+          <h2>Every decision has a trail.</h2>
+        </header>
+
+        <form class="filters" id="run-filters">
+          <label>mode<select name="mode"><option value="">all modes</option><option value="jev">jev</option><option value="local">local</option></select></label>
+          <label>status<select name="status"><option value="">all statuses</option><option value="applied">applied</option><option value="fallback">fallback</option><option value="passed">passed</option><option value="failed">failed</option></select></label>
+          <label>from<input type="date" name="from"></label>
+          <label>to<input type="date" name="to"></label>
+          <div class="filter-actions">
+            <button class="button primary" type="submit">apply filters</button>
+            <button class="button" id="reset-filters" type="reset">reset</button>
+          </div>
+        </form>
+
+        <article class="canvas run-panel">
+          <header class="canvas-bar">
+            <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <strong>runs.jsonl</strong>
+            <span id="runs-meta">loading records…</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>time</th><th>mode</th><th>before / after</th><th>reduction</th><th>critical</th><th>requests</th><th>latency</th><th>cost</th><th>status</th></tr></thead>
+              <tbody id="runs-body"><tr><td colspan="9" class="table-message">Loading run history…</td></tr></tbody>
+            </table>
+          </div>
+          <footer class="canvas-status"><span>Select a row for decision details</span><span class="push-right" id="runs-limit">max 50 records</span></footer>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="benchmarks">
+      <div class="container">
+        <header class="section-head compact">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>03 / benchmarks</span></div>
+          <h2>Retention before reduction.</h2>
+        </header>
+        <div class="benchmark-grid">
+          <article class="benchmark-card"><span>critical-information retention</span><strong id="benchmark-retention">No benchmark data yet</strong><p>Required calls and results preserved.</p></article>
+          <article class="benchmark-card"><span>deterministic task pass rate</span><strong id="benchmark-pass-rate">No benchmark data yet</strong><p>Reviewed verification commands passed.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="container about-grid">
+        <header class="section-head compact">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>04 / about</span></div>
+          <h2>Local by design.</h2>
+        </header>
+        <div class="about-copy">
+          <p>This dashboard reads safe metrics and decision metadata from <code>.jev/runs.jsonl</code>. It never displays prompts, secrets, or raw tool output.</p>
+          <p>Token figures are estimates. API usage and cost remain unknown unless the provider reports them.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container"><span><b>jev</b> · observable context compaction</span><span>local dashboard · no telemetry upload</span></div>
+  </footer>
+
+  <dialog class="detail-dialog" id="run-detail" aria-labelledby="detail-title">
+    <div class="detail-shell">
+      <header class="detail-head">
+        <div><span class="detail-kicker">run detail</span><h2 id="detail-title">Compaction run</h2></div>
+        <button class="icon-button" id="detail-close" type="button" aria-label="Close run details">×</button>
+      </header>
+      <div class="detail-body" id="detail-body"><p>Loading decision metadata…</p></div>
+    </div>
+  </dialog>
+</body>
+</html>
