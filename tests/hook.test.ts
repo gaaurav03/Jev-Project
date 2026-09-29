@@ -3,6 +3,7 @@ import {
   compactSession,
   decisionLog,
   decisionLogLines,
+  recordLiveRun,
   resolveHookConfig,
   summarize,
   toSessionMessages,
@@ -112,6 +113,47 @@ describe('session message mapping', () => {
 });
 
 describe('compactSession', () => {
+  it('records live metrics and decisions without transcript content', async () => {
+    const messages = transcript();
+    messages[0]!.text = 'secret prompt';
+    const config = resolveHookConfig({ mode: 'local', preserveRecentMessages: 1 });
+    const { result: output } = await compactSession(messages, config, async () => {
+      throw new Error('network must not run');
+    });
+    let jsonl = '';
+    let writtenPath = '';
+    await recordLiveRun(
+      {
+        fs: {
+          exists: async () => jsonl.length > 0,
+          read: async () => jsonl,
+          write: async (path, content) => { writtenPath = path; jsonl = content; },
+        },
+        session: {
+          cwd: async () => 'C:/workspace/nested',
+          repo: async () => ({ root: 'C:/workspace' }),
+        },
+        ui: { log: () => undefined },
+      },
+      config,
+      'applied',
+      null,
+      output,
+    );
+
+    expect(writtenPath).toBe('C:/workspace/.jev/runs.jsonl');
+    expect(jsonl).not.toContain('secret prompt');
+    expect(JSON.parse(jsonl)).toMatchObject({
+      version: 1,
+      source: 'live',
+      mode: 'local',
+      status: 'applied',
+      fallbackReason: null,
+      benchmark: null,
+      metrics: { requests: 0 },
+    });
+  });
+
   it('runs the library over the engine fetch and reports the outcome', async () => {
     const bodies: string[] = [];
     const config = { ...resolveHookConfig({ preserveRecentMessages: 1 }), apiKey: 'k', model: 'jev-x' };

@@ -6,3 +6,5 @@ export * from './compact.js';
 export * from './messages.js';
 export * from './benchmark.js';
 export * from './local.js';
+export * from './run-record.js';
+export * from './run-store.js';

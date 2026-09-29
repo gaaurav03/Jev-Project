@@ -80,6 +80,11 @@ reduction, per-reason counts, state size and request count; a per-call
 compaction when `context.percent` reaches `compactAtPercent`, with an
 in-flight guard.
 
+Every applied or fallback compaction writes safe metrics and decision metadata
+to the repository-root `.jev/runs.jsonl`. It stores no transcript, tool input,
+raw tool output, API key, or raw error message. Storage failures are logged and
+do not change the compaction result.
+
 ## Scope and caveat
 
 Function hooks are early access and may change between Claude Code releases.

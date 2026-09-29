@@ -11,6 +11,14 @@ import type {
 import { compact, reductionRatio, resolveOptions } from '../src/compact.js';
 import { LocalAsker } from '../src/local.js';
 import {
+  compactRunMetrics,
+  createRunRecord,
+  DEFAULT_RUN_HISTORY_PATH,
+  serializeRunRecord,
+  type RunFallbackReason,
+  type RunStatus,
+} from '../src/run-record.js';
+import {
   buildJevRequest,
   DEFAULT_MODEL,
   JEV_REQUEST_TIMEOUT_MS,
@@ -284,6 +292,52 @@ function notify(
   $.ui.toast(text, { timeoutMs: 15_000 });
 }
 
+function fallbackReason(error: unknown): RunFallbackReason {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (message.includes('typesafe_api_key')) return 'missing_api_key';
+  if (message.includes('timed out')) return 'request_timeout';
+  if (message.includes('jev request') || message.includes('jev response')) return 'remote_error';
+  return 'compaction_error';
+}
+
+export async function recordLiveRun(
+  $: {
+    fs: {
+      exists: (path: string) => Promise<boolean>;
+      read: (path: string) => Promise<string>;
+      write: (path: string, text: string) => Promise<void>;
+    };
+    session: {
+      cwd: () => Promise<string>;
+      repo: () => Promise<{ root: string } | null>;
+    };
+    ui: { log: (text: string) => void };
+  },
+  config: HookConfig,
+  status: RunStatus,
+  reason: RunFallbackReason | null,
+  result?: CompactResult,
+): Promise<void> {
+  try {
+    const record = createRunRecord({
+      source: 'live',
+      mode: config.mode,
+      status,
+      fallbackReason: reason,
+      metrics: result ? compactRunMetrics(result) : null,
+      decisions: result?.decisions ?? [],
+      benchmark: null,
+    });
+    const root = (await $.session.repo())?.root ?? await $.session.cwd();
+    const path = root.replace(/[\\/]+$/, '') + '/' + DEFAULT_RUN_HISTORY_PATH;
+    const previous = (await $.fs.exists(path)) ? await $.fs.read(path) : '';
+    // ponytail: the hook API has whole-file writes only; use append when the host exposes it.
+    await $.fs.write(path, previous + serializeRunRecord(record));
+  } catch {
+    $.ui.log('run history unavailable');
+  }
+}
+
 export const register: Register = (on: On, options: PluginOptions) => {
   const configured = resolveHookConfig(options);
   let compacting = false;
@@ -303,6 +357,13 @@ export const register: Register = (on: On, options: PluginOptions) => {
       });
       for (const line of decisionLogLines(result)) $.ui.log(line);
       if (reductionRatio(result) < config.minReductionRatio) {
+        await recordLiveRun(
+          $,
+          config,
+          'fallback',
+          'below_minimum_reduction',
+          result,
+        );
         notify(
           $,
           `fallback to built-in summary (below ${percent(config.minReductionRatio)} minimum: ${summarize(result)})`,
@@ -313,8 +374,10 @@ export const register: Register = (on: On, options: PluginOptions) => {
         $,
         `kept ${messages.length}/${event.messages.length} messages, no summary (${summarize(result)})`,
       );
+      await recordLiveRun($, config, 'applied', null, result);
       return { messages };
     } catch (error) {
+      await recordLiveRun($, configured, 'fallback', fallbackReason(error));
       notify(
         $,
         `fallback to built-in summary (${error instanceof Error ? error.message : String(error)})`,
