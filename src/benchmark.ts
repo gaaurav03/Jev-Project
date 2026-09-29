@@ -1,4 +1,4 @@
-import type { Message } from './types.js';
+import type { CompactResult, Message } from './types.js';
 
 export const MAX_BENCHMARK_BYTES = 1_000_000;
 
@@ -272,4 +272,198 @@ export function scoreCriticalRetention(
     incorrectlyRemovedCalls,
     incorrectlyRemovedResults,
   };
+}
+export type BenchmarkCompactor = (benchmark: BenchmarkCase) => Promise<CompactResult>;
+export type BenchmarkVerifier = (
+  verification: ReviewedVerification,
+  benchmark: BenchmarkCase,
+) => Promise<boolean>;
+
+export interface BenchmarkCaseResult {
+  id: string;
+  name: string;
+  category: BenchmarkCategory;
+  estimatedTokensBefore: number;
+  estimatedTokensAfter: number;
+  estimatedTokensSaved: number;
+  estimatedReduction: number;
+  criticalRetention: CriticalRetentionScore;
+  taskPassed: boolean;
+  latencyMs: number;
+  requests: number;
+  apiUsage: CompactResult['stats']['apiUsage'];
+  costUsd: number | null;
+}
+
+export interface BenchmarkReport {
+  version: 1;
+  mode: 'jev';
+  results: BenchmarkCaseResult[];
+  summary: {
+    cases: number;
+    estimatedTokensBefore: number;
+    estimatedTokensAfter: number;
+    estimatedTokensSaved: number;
+    estimatedReduction: number;
+    criticalRequired: number;
+    criticalRetained: number;
+    criticalRetention: number;
+    tasksPassed: number;
+    taskPassRate: number;
+    latencyMs: number;
+    requests: number;
+    apiUsage: CompactResult['stats']['apiUsage'];
+    costUsd: number | null;
+  };
+}
+
+function ratio(saved: number, before: number): number {
+  return before === 0 ? 0 : saved / before;
+}
+
+function sumKnown(values: readonly (number | null)[]): number | null {
+  return values.every((value) => value !== null)
+    ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+    : null;
+}
+
+export async function runBenchmarkSuite(
+  suite: BenchmarkSuite,
+  compactCase: BenchmarkCompactor,
+  verifyCase: BenchmarkVerifier,
+): Promise<BenchmarkReport> {
+  const results: BenchmarkCaseResult[] = [];
+  for (const benchmark of suite.cases) {
+    const compacted = await compactCase(benchmark);
+    const criticalRetention = scoreCriticalRetention(benchmark, compacted.messages);
+    const taskPassed = await verifyCase(
+      reviewedVerification(benchmark.verification),
+      benchmark,
+    );
+    results.push({
+      id: benchmark.id,
+      name: benchmark.name,
+      category: benchmark.category,
+      estimatedTokensBefore: compacted.stats.estimatedTokensBefore,
+      estimatedTokensAfter: compacted.stats.estimatedTokensAfter,
+      estimatedTokensSaved: compacted.stats.estimatedTokensSaved,
+      estimatedReduction: ratio(
+        compacted.stats.estimatedTokensSaved,
+        compacted.stats.estimatedTokensBefore,
+      ),
+      criticalRetention,
+      taskPassed,
+      latencyMs: compacted.stats.ms,
+      requests: compacted.stats.requests,
+      apiUsage: compacted.stats.apiUsage,
+      costUsd: compacted.stats.costUsd,
+    });
+  }
+
+  const estimatedTokensBefore = results.reduce(
+    (sum, result) => sum + result.estimatedTokensBefore,
+    0,
+  );
+  const estimatedTokensAfter = results.reduce(
+    (sum, result) => sum + result.estimatedTokensAfter,
+    0,
+  );
+  const estimatedTokensSaved = estimatedTokensBefore - estimatedTokensAfter;
+  const criticalRequired = results.reduce(
+    (sum, result) => sum + result.criticalRetention.required,
+    0,
+  );
+  const criticalRetained = results.reduce(
+    (sum, result) => sum + result.criticalRetention.retained,
+    0,
+  );
+  const inputTokens = sumKnown(
+    results.map((result) => result.apiUsage?.inputTokens ?? null),
+  );
+  const outputTokens = sumKnown(
+    results.map((result) => result.apiUsage?.outputTokens ?? null),
+  );
+  const tasksPassed = results.filter((result) => result.taskPassed).length;
+
+  return {
+    version: 1,
+    mode: 'jev',
+    results,
+    summary: {
+      cases: results.length,
+      estimatedTokensBefore,
+      estimatedTokensAfter,
+      estimatedTokensSaved,
+      estimatedReduction: ratio(estimatedTokensSaved, estimatedTokensBefore),
+      criticalRequired,
+      criticalRetained,
+      criticalRetention: ratio(criticalRetained, criticalRequired),
+      tasksPassed,
+      taskPassRate: ratio(tasksPassed, results.length),
+      latencyMs: results.reduce((sum, result) => sum + result.latencyMs, 0),
+      requests: results.reduce((sum, result) => sum + result.requests, 0),
+      apiUsage:
+        inputTokens === null && outputTokens === null
+          ? null
+          : { inputTokens, outputTokens },
+      costUsd: sumKnown(results.map((result) => result.costUsd)),
+    },
+  };
+}
+function percent(value: number): string {
+  return (value * 100).toFixed(1) + '%';
+}
+
+function usageText(usage: CompactResult['stats']['apiUsage']): string {
+  if (!usage) return 'unknown';
+  return String(usage.inputTokens ?? '?') + '/' + String(usage.outputTokens ?? '?');
+}
+
+export function formatBenchmarkTable(report: BenchmarkReport): string {
+  const headers = [
+    'Case',
+    'Est. reduction',
+    'Retention',
+    'Task',
+    'Latency',
+    'Requests',
+    'Usage in/out',
+    'Cost',
+  ];
+  const rows = report.results.map((result) => [
+    result.id,
+    String(result.estimatedTokensSaved) + ' (' + percent(result.estimatedReduction) + ')',
+    percent(result.criticalRetention.ratio),
+    result.taskPassed ? 'pass' : 'fail',
+    String(result.latencyMs) + 'ms',
+    String(result.requests),
+    usageText(result.apiUsage),
+    result.costUsd === null ? 'unknown' : 'USD ' + result.costUsd.toFixed(6),
+  ]);
+  rows.push([
+    'TOTAL',
+    String(report.summary.estimatedTokensSaved) +
+      ' (' +
+      percent(report.summary.estimatedReduction) +
+      ')',
+    percent(report.summary.criticalRetention),
+    String(report.summary.tasksPassed) +
+      '/' +
+      String(report.summary.cases) +
+      ' (' +
+      percent(report.summary.taskPassRate) +
+      ')',
+    String(report.summary.latencyMs) + 'ms',
+    String(report.summary.requests),
+    usageText(report.summary.apiUsage),
+    report.summary.costUsd === null ? 'unknown' : 'USD ' + report.summary.costUsd.toFixed(6),
+  ]);
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0)),
+  );
+  const line = (row: readonly string[]): string =>
+    row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
+  return [line(headers), line(widths.map((width) => '-'.repeat(width))), ...rows.map(line)].join(
+    '\n',
+  );
 }

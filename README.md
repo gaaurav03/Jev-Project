@@ -162,6 +162,33 @@ To run from a checkout without installing: `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 
 from the repository root. No publishing step is required; the marketplace is
 just the repo's `.claude-plugin/marketplace.json`.
 
+## Benchmark
+
+The benchmark runs every labelled case through Jev, checks critical call/result
+retention, runs only the reviewed verification command selected by the case,
+and reports estimated reduction, task pass rate, latency, requests, API usage,
+and known cost. Cost remains unknown when verified pricing is unavailable.
+
+PowerShell:
+
+~~~powershell
+$env:TYPESAFE_API_KEY = 'your-key'
+npm.cmd run bench
+npm.cmd run bench -- --json
+npm.cmd run bench -- --cases bench/cases/core.json
+~~~
+
+macOS/Linux:
+
+~~~sh
+TYPESAFE_API_KEY='your-key' npm run bench
+npm run bench -- --json
+~~~
+
+Table output is the default; --json emits the complete machine-readable report.
+Benchmark JSON cannot provide executable commands. It can only select a command
+from the reviewed catalog in src/benchmark.ts.
+
 ## Development
 
 ```sh
