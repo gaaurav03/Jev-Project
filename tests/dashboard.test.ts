@@ -107,8 +107,14 @@ describe('dashboard API', () => {
       expect(pageResponse.status).toBe(200);
       expect(pageResponse.headers.get('content-type')).toContain('text/html');
       expect(pageResponse.headers.get('content-security-policy')).toContain("script-src 'self'");
-      expect(page).toContain('Context stays');
-      expect(page).not.toMatch(/https?:\/\//);
+      expect(page).toContain('Nothing rewritten');
+      // Outbound links are fine; every script, stylesheet, and image must be same-origin.
+      expect(page).not.toMatch(/<(script|link|img)\b[^>]*\b(src|href)="(https?:)?\/\//);
+
+      const image = await fetch(base + '/assets/compact-toast.png');
+      expect(image.status).toBe(200);
+      expect(image.headers.get('content-type')).toBe('image/png');
+      expect(Buffer.from(await image.arrayBuffer()).subarray(1, 4).toString()).toBe('PNG');
 
       const css = await (await fetch(base + '/dashboard.css')).text();
       expect(css).toContain(':root[data-theme="dark"]');

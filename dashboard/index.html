@@ -4,27 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#141517">
-  <meta name="description" content="Privacy-safe observability dashboard for Jev context compaction.">
-  <title>Jev — compaction dashboard</title>
+  <meta name="description" content="fast-jev-compaction: a Claude Code plugin that prunes stale tool calls instead of summarizing, keeps everything else verbatim, and publishes privacy-safe live metrics.">
+  <title>fast-jev-compaction — verbatim context compaction for Claude Code</title>
   <link rel="stylesheet" href="/dashboard.css">
   <script src="/dashboard.js" defer></script>
 </head>
 <body>
   <header class="topbar" id="topbar">
     <div class="nav-inner">
-      <a class="brand" href="#overview" aria-label="Jev dashboard home">
+      <a class="brand" href="#overview" aria-label="fast-jev-compaction home">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
         <span>jev</span>
       </a>
-      <nav class="nav-links" aria-label="Dashboard sections">
+      <nav class="nav-links" aria-label="Page sections">
         <a class="active" href="#overview">overview</a>
-        <a href="#telemetry">telemetry</a>
-        <a href="#runs">runs</a>
+        <a href="#how">how it works</a>
+        <a href="#features">features</a>
+        <a href="#start">quick start</a>
+        <a href="#telemetry">live</a>
         <a href="#benchmarks">benchmarks</a>
-        <a href="#about">about</a>
+        <a href="#compare">compare</a>
+        <a href="#privacy">privacy</a>
       </nav>
       <div class="nav-actions">
-        <span class="local-badge"><i aria-hidden="true"></i>live metrics</span>
+        <a class="local-badge" href="https://github.com/gaaurav03/Jev-Project" rel="noopener"><i aria-hidden="true"></i>github ↗</a>
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch color theme">
           <span aria-hidden="true">◐</span>
         </button>
@@ -33,23 +36,47 @@
         </button>
       </div>
     </div>
-    <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile dashboard sections">
+    <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile page sections">
       <a href="#overview">overview</a>
-      <a href="#telemetry">telemetry</a>
-      <a href="#runs">runs</a>
+      <a href="#how">how it works</a>
+      <a href="#features">features</a>
+      <a href="#start">quick start</a>
+      <a href="#telemetry">live data</a>
       <a href="#benchmarks">benchmarks</a>
-      <a href="#about">about</a>
+      <a href="#compare">compare</a>
+      <a href="#privacy">privacy</a>
     </nav>
   </header>
 
   <main>
     <section class="hero container" id="overview">
-      <div class="eyebrow"><i aria-hidden="true"></i>privacy-safe compaction observability</div>
-      <h1>Context stays <span class="accent-orange">lean.</span><br>Impact stays <span class="accent-blue">visible.</span></h1>
-      <p class="hero-copy">Inspect estimated savings, benchmark retention, and sanitized run metrics without exposing prompts or tool output.</p>
+      <div class="eyebrow"><i aria-hidden="true"></i>claude code plugin · mit · open source</div>
+      <h1>Long sessions. <span class="accent-orange">Lean context.</span><br><span class="accent-blue">Nothing rewritten.</span></h1>
+      <p class="hero-copy">fast-jev-compaction replaces Claude Code's lossy compaction summary with verbatim pruning. Stale tool calls and results are removed; every message that stays is kept word for word.</p>
+
+      <div class="install-box">
+        <div class="install-line">
+          <span class="prompt" aria-hidden="true">$</span>
+          <code id="install-command">claude plugin marketplace add gaaurav03/Jev-Project</code>
+          <button class="copy-button" type="button" data-copy="install-command" aria-label="Copy marketplace command">copy</button>
+        </div>
+        <div class="install-line">
+          <span class="prompt" aria-hidden="true">$</span>
+          <code id="install-command-2">claude plugin install fast-jev-compaction@fast-jev-compaction</code>
+          <button class="copy-button" type="button" data-copy="install-command-2" aria-label="Copy install command">copy</button>
+        </div>
+      </div>
+
       <div class="hero-actions">
-        <button class="button primary" id="refresh-button" type="button">↻ refresh data</button>
-        <span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to run history…</span>
+        <a class="button primary" href="#start">quick start →</a>
+        <a class="button" href="https://github.com/gaaurav03/Jev-Project" rel="noopener">view on github ↗</a>
+      </div>
+
+      <div class="proof-strip" aria-label="Key facts">
+        <span><b>verbatim</b> kept messages are never rewritten</span>
+        <span><b>2 modes</b> jev model or offline local rules</span>
+        <span><b>safe fallback</b> built-in summary when savings are small</span>
+        <span><b>open data</b> live, anonymous usage metrics</span>
       </div>
 
       <div class="community" id="community" hidden>
@@ -78,7 +105,7 @@
         </div>
       </div>
 
-      <p class="strip-head"><span id="runs-scope">recorded runs &amp; benchmarks</span></p>
+      <p class="strip-head"><span id="runs-scope">recorded runs &amp; benchmarks</span><span class="sync-group"><span class="sync-state" id="sync-state" role="status" aria-live="polite">connecting to run history…</span><button class="text-button" id="refresh-button" type="button">↻ refresh</button></span></p>
       <div class="stats-strip" id="overview-cards" aria-busy="true">
         <article class="stat-panel">
           <p class="stat-label"><i class="orange" aria-hidden="true"></i>estimated tokens saved</p>
@@ -114,10 +141,169 @@
       </div>
     </div>
 
+    <section class="section" id="how">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>01 / how it works</span></div>
+          <h2>Delete what's stale. Keep the rest exactly.</h2>
+          <p>Summaries are lossy: a file path, exact error, or constraint can vanish when it matters later. This plugin never rewrites. It only removes tool calls and results that are no longer needed.</p>
+        </header>
+
+        <ol class="flow" aria-label="Compaction pipeline">
+          <li class="flow-step">
+            <span class="flow-index">01</span>
+            <h3>Trigger</h3>
+            <p><code>/compact</code>, or automatically when context reaches 60%.</p>
+          </li>
+          <li class="flow-step">
+            <span class="flow-index">02</span>
+            <h3>Redact</h3>
+            <p>Secrets and PII are stripped from the outbound copy. Your transcript is untouched.</p>
+          </li>
+          <li class="flow-step accent-step">
+            <span class="flow-index">03</span>
+            <h3>Score</h3>
+            <p><b class="mode-jev">jev</b> asks the Jev model about every call in one fast request, or <b class="mode-local">local</b> applies offline rules.</p>
+          </li>
+          <li class="flow-step">
+            <span class="flow-index">04</span>
+            <h3>Decide</h3>
+            <p>Each call is kept, has its result truncated, or is removed with its result. Recent messages are pinned.</p>
+          </li>
+          <li class="flow-step">
+            <span class="flow-index">05</span>
+            <h3>Apply or fall back</h3>
+            <p>Enough savings: the pruned, verbatim history replaces the summary. Otherwise: Claude's built-in summary.</p>
+          </li>
+        </ol>
+
+        <div class="keep-drop">
+          <article class="canvas">
+            <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>kept verbatim</strong><span>never rewritten</span></header>
+            <ul class="check-list keep">
+              <li>Every user and assistant text message, in order</li>
+              <li>The first message and the newest messages (pinned)</li>
+              <li>Tool calls and results still needed for the task</li>
+              <li>In local mode: errors, edits, and anything uncertain</li>
+            </ul>
+          </article>
+          <article class="canvas">
+            <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>removed or truncated</strong><span>re-runnable if needed</span></header>
+            <ul class="check-list drop">
+              <li>Tool calls that no longer matter, with their results</li>
+              <li>Stale results, cut to their first 300 characters plus a note</li>
+              <li>In local mode: old, successful duplicate file reads</li>
+              <li>Nothing at all when savings fall below the minimum</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>02 / features</span></div>
+          <h2>Built to be trusted with your context.</h2>
+        </header>
+        <div class="feature-grid">
+          <article class="feature"><span class="feature-tag">core</span><h3>Verbatim pruning</h3><p>Deletes whole tool calls or truncates results. Kept messages are the original objects, unchanged.</p></article>
+          <article class="feature"><span class="feature-tag blue">jev mode</span><h3>One fast request</h3><p>The Jev model scores every call and result against the whole conversation, with a 30-second timeout.</p></article>
+          <article class="feature"><span class="feature-tag orange">local mode</span><h3>Offline, no API key</h3><p>Deterministic rules with zero network requests. Conservative by design: only old duplicate reads go.</p></article>
+          <article class="feature"><span class="feature-tag">security</span><h3>Outbound redaction</h3><p>Bearer tokens, API keys, passwords, private keys, emails, and phone numbers are removed before anything is sent.</p></article>
+          <article class="feature"><span class="feature-tag">safety</span><h3>Safe fallback</h3><p>Errors, timeouts, or savings below the minimum hand off to Claude's built-in summary. Compaction never breaks.</p></article>
+          <article class="feature"><span class="feature-tag">metrics</span><h3>Per-run metrics</h3><p>Tokens before and after, reduction, latency, requests, and provider usage when reported. Nothing invented.</p></article>
+          <article class="feature"><span class="feature-tag">quality</span><h3>Retention benchmark</h3><p><code>npm run bench</code> checks that labelled critical calls survive and that tasks still pass, in both modes.</p></article>
+          <article class="feature"><span class="feature-tag">history</span><h3>Local run history</h3><p>Every run is appended to <code>.jev/runs.jsonl</code> with decisions, never prompts or tool output.</p></article>
+          <article class="feature"><span class="feature-tag">dashboard</span><h3>Private dashboard</h3><p><code>npm run dashboard</code> serves this page on 127.0.0.1 with per-run decision details.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="start">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>03 / quick start</span></div>
+          <h2>Running in two minutes.</h2>
+          <p>Function hooks are an early-access Claude Code feature (2.1.274+), so enable them first.</p>
+        </header>
+        <div class="steps">
+          <article class="step">
+            <span class="step-index">1</span>
+            <div>
+              <h3>Enable function hooks</h3>
+              <p>Add this to <code>~/.claude/settings.json</code>. The API key is only needed for Jev mode.</p>
+              <pre class="code-block"><code>{
+  "env": {
+    "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1",
+    "TYPESAFE_API_KEY": "&lt;your key, jev mode only&gt;"
+  }
+}</code></pre>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-index">2</span>
+            <div>
+              <h3>Install the plugin</h3>
+              <p>From a terminal, or as slash commands inside Claude Code.</p>
+              <pre class="code-block"><code>claude plugin marketplace add gaaurav03/Jev-Project
+claude plugin install fast-jev-compaction@fast-jev-compaction</code></pre>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-index">3</span>
+            <div>
+              <h3>Pick a mode</h3>
+              <p>Open <code>/config</code> and set <code>mode</code> to <code>jev</code> (more savings, needs a key) or <code>local</code> (offline, most conservative). Restart Claude Code.</p>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-index">4</span>
+            <div>
+              <h3>Compact</h3>
+              <p>Run <code>/compact</code>, or let it trigger at 60% context. The toast reports the result:</p>
+              <pre class="code-block"><code>kept 20/140 messages, no summary (98% reduction; 60 call_dropped …)</code></pre>
+            </div>
+          </article>
+          <article class="step">
+            <span class="step-index">5</span>
+            <div>
+              <h3>Measure it yourself (optional)</h3>
+              <p>From a clone of the repository:</p>
+              <pre class="code-block"><code>npm install
+npm run bench -- --mode both   # retention + reduction
+npm run dashboard              # private dashboard on 127.0.0.1</code></pre>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="demo">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>04 / in claude code</span></div>
+          <h2>See it where you work.</h2>
+        </header>
+        <div class="shots">
+          <figure class="canvas shot">
+            <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>/plugin</strong><span>installed</span></header>
+            <img src="/assets/plugin-installed.png" width="1307" height="947" loading="lazy" alt="Claude Code plugin manager listing fast-jev-compaction as an installed user plugin, enabled with a green check.">
+            <figcaption>Installed from the repository's marketplace, next to Claude Code's built-in plugins.</figcaption>
+          </figure>
+          <figure class="canvas shot">
+            <header class="canvas-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><strong>/compact</strong><span>fallback</span></header>
+            <img src="/assets/compact-toast.png" width="1262" height="606" loading="lazy" alt="Claude Code terminal after /compact: fast-jev-compaction logs its decisions and a toast reports a fallback to the built-in summary because a 10% reduction was below the minimum.">
+            <figcaption>When a session is too short to save much, it says so and falls back to Claude's own summary instead of forcing a weak result.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="telemetry">
       <div class="container">
         <header class="section-head">
-          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>01 / telemetry</span></div>
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>05 / live telemetry</span></div>
           <h2>Signal, not guesswork.</h2>
           <p>Reduction and latency come directly from recorded runs. Missing values stay visibly unavailable.</p>
         </header>
@@ -188,7 +374,7 @@
     <section class="section" id="runs">
       <div class="container">
         <header class="section-head compact">
-          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>02 / run history</span></div>
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>06 / run history</span></div>
           <h2>Every run leaves a signal.</h2>
         </header>
 
@@ -222,34 +408,118 @@
 
     <section class="section" id="benchmarks">
       <div class="container">
-        <header class="section-head compact">
-          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>03 / benchmarks</span></div>
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>07 / benchmarks</span></div>
           <h2>Retention before reduction.</h2>
+          <p>Four labelled cases, run in both modes. Each case marks the calls and results that must survive, then runs a deterministic check that the task still passes.</p>
         </header>
+
+        <article class="canvas bench-panel">
+          <header class="canvas-bar">
+            <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <strong>npm run bench -- --mode both</strong>
+            <span>recorded 2026-09-30</span>
+          </header>
+          <div class="table-scroll">
+            <table class="bench-table">
+              <thead><tr><th>case</th><th>jev reduction</th><th>jev critical kept</th><th>local reduction</th><th>local critical kept</th><th>task</th></tr></thead>
+              <tbody>
+                <tr><td>obsolete-read</td><td>40.3%</td><td class="critical-ok">100%</td><td>40.3%</td><td class="critical-ok">100%</td><td>pass · pass</td></tr>
+                <tr><td>required-error</td><td>69.6%</td><td class="critical-risk">0%</td><td>0.0%</td><td class="critical-ok">100%</td><td>pass · pass</td></tr>
+                <tr><td>repeated-test</td><td>42.4%</td><td class="critical-ok">100%</td><td>0.0%</td><td class="critical-ok">100%</td><td>pass · pass</td></tr>
+                <tr><td>protected-constraint</td><td>64.7%</td><td class="critical-risk">0%</td><td>0.0%</td><td class="critical-ok">100%</td><td>pass · pass</td></tr>
+                <tr class="total-row"><td>total</td><td>52.1%</td><td>50%</td><td>12.7%</td><td>100%</td><td>4/4 · 4/4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <footer class="canvas-status"><span>jev: 4 requests, 1.7 s total · local: 0 requests, 51 ms</span><span class="push-right">token counts are estimates</span></footer>
+        </article>
+
+        <div class="tradeoff">
+          <p><b class="mode-jev">jev</b> saves about four times more context, but in two of four cases it removed information the benchmark marks as critical. <b class="mode-local">local</b> saves less and kept everything critical. Choose local when exact errors and constraints must survive; the assistant can always re-run a removed tool.</p>
+        </div>
+
         <div class="benchmark-grid">
-          <article class="benchmark-card"><span>critical-information retention</span><strong id="benchmark-retention">No benchmark data yet</strong><p>Required calls and results preserved.</p></article>
-          <article class="benchmark-card"><span>deterministic task pass rate</span><strong id="benchmark-pass-rate">No benchmark data yet</strong><p>Reviewed verification commands passed.</p></article>
+          <article class="benchmark-card"><span>live critical-information retention</span><strong id="benchmark-retention">No benchmark data yet</strong><p>Across benchmark runs uploaded to this dashboard.</p></article>
+          <article class="benchmark-card"><span>live deterministic task pass rate</span><strong id="benchmark-pass-rate">No benchmark data yet</strong><p>Reviewed verification commands passed.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="section" id="about">
+    <section class="section" id="compare">
+      <div class="container">
+        <header class="section-head">
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>08 / compare</span></div>
+          <h2>How it differs.</h2>
+          <p>This project is a fork of <a class="text-link" href="https://github.com/tamaratran/fast-jev-compaction" rel="noopener">tamaratran/fast-jev-compaction</a>, which introduced Jev-guided verbatim pruning.</p>
+        </header>
+        <div class="canvas">
+          <div class="table-scroll">
+            <table class="compare-table">
+              <thead><tr><th>capability</th><th>claude built-in /compact</th><th>upstream fast-jev</th><th>this fork</th></tr></thead>
+              <tbody>
+                <tr><td>How history shrinks</td><td>LLM-written summary</td><td>verbatim pruning via Jev</td><td>verbatim pruning via Jev or local rules</td></tr>
+                <tr><td>Exact paths, errors, commands</td><td><span class="no">can be lost in the summary</span></td><td><span class="yes">kept unless pruned</span></td><td><span class="yes">kept unless pruned</span></td></tr>
+                <tr><td>Works without an extra API key</td><td><span class="yes">yes</span></td><td><span class="no">no</span></td><td><span class="yes">yes, local mode</span></td></tr>
+                <tr><td>Secrets redacted before sending</td><td><span class="na">n/a</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Falls back when savings are small</td><td><span class="na">n/a</span></td><td><span class="yes">yes</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Per-run metrics and history</td><td><span class="no">no</span></td><td><span class="no">toast only</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Retention benchmark</td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+                <tr><td>Dashboard and public metrics</td><td><span class="no">no</span></td><td><span class="no">no</span></td><td><span class="yes">yes</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="privacy">
       <div class="container about-grid">
         <header class="section-head compact">
-          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>04 / about</span></div>
+          <div class="section-meta"><span class="seam" aria-hidden="true"></span><span>09 / privacy</span></div>
           <h2>Privacy by design.</h2>
+          <p>Community totals come from anonymous, opt-out telemetry. The first compaction only shows a notice; nothing is sent until the next one.</p>
         </header>
         <div class="about-copy">
-          <p>This dashboard displays constrained metrics only. Public responses omit exact run IDs, benchmark identifiers, tool names, prompts, secrets, and raw tool output.</p>
-          <p>Community totals come from anonymous, opt-out counts: a random install ID, mode, status, and token estimates per compaction. Opt out with <code>JEV_TELEMETRY=0</code> or <code>DO_NOT_TRACK=1</code>.</p>
-          <p>Token figures are estimates. API usage and cost remain unknown unless the provider reports them.</p>
+          <div class="privacy-grid">
+            <article>
+              <h3 class="privacy-head yes">sent per compaction</h3>
+              <ul class="check-list keep">
+                <li>A random install ID, not tied to you or your machine</li>
+                <li>Plugin version, mode, and applied or fallback</li>
+                <li>Estimated tokens before and after, and latency</li>
+              </ul>
+            </article>
+            <article>
+              <h3 class="privacy-head no">never sent</h3>
+              <ul class="check-list drop">
+                <li>Prompts, messages, code, or tool output</li>
+                <li>File names, paths, or tool names</li>
+                <li>API keys, run IDs, or IP addresses</li>
+              </ul>
+            </article>
+          </div>
+          <p>Opt out with <code>JEV_TELEMETRY=0</code>, <code>DO_NOT_TRACK=1</code>, or the plugin's <code>telemetry</code> option in <code>/config</code>. Benchmark runs are never sent.</p>
+          <p>This page shows constrained metrics only. Token figures are estimates; API usage and cost stay unknown unless the provider reports them.</p>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <div class="container"><span><b>jev</b> · observable context compaction</span><span>privacy-safe live metrics</span></div>
+    <div class="container footer-grid">
+      <div>
+        <span class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span>fast-jev-compaction</span></span>
+        <p>Verbatim context compaction for Claude Code. MIT licensed.</p>
+      </div>
+      <nav aria-label="Footer links">
+        <a href="https://github.com/gaaurav03/Jev-Project" rel="noopener">github</a>
+        <a href="https://github.com/gaaurav03/Jev-Project#readme" rel="noopener">docs</a>
+        <a href="https://github.com/gaaurav03/Jev-Project/blob/main/LICENSE" rel="noopener">license</a>
+        <a href="https://github.com/tamaratran/fast-jev-compaction" rel="noopener">upstream project</a>
+        <a href="#privacy">privacy</a>
+      </nav>
+    </div>
   </footer>
 
   <dialog class="detail-dialog" id="run-detail" aria-labelledby="detail-title">
