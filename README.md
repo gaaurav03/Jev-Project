@@ -281,6 +281,40 @@ fallback details, benchmark identifiers, decision details, and tool names.
 `POST /api/ingest` remains protected by the ingestion token. The local
 dashboard continues to provide private per-run details from `.jev/runs.jsonl`.
 
+## Anonymous usage telemetry
+
+The public dashboard's **community** totals (context saved, active installs,
+compactions, average reduction) come from anonymous counts that the Claude Code
+hook sends after each live compaction. Telemetry is **on by default**:
+
+- **First compaction:** the hook creates a random install ID in the plugin's
+  own store, prints a notice, and sends nothing.
+- **Later compactions:** one small JSON event is sent to
+  `https://jev-project-bay.vercel.app/api/telemetry`:
+
+~~~json
+{ "v": 1, "install_id": "<random 32 hex>", "plugin_version": "0.4.0",
+  "mode": "local", "status": "applied",
+  "tokens_before": 1000, "tokens_after": 600, "latency_ms": 13 }
+~~~
+
+That is the complete payload. Prompts, messages, code, file names, paths, tool
+names, tool output, run IDs, and API keys are never sent. Benchmark runs are
+never sent. The install ID is random and not derived from you or your machine.
+The server does not store IP addresses; it keeps only a daily-rotating keyed
+hash of the sender's address to rate-limit abuse. Sending is best-effort, times
+out after 3 seconds, runs in parallel with other uploads, and never changes the
+compaction result.
+
+**Opt out** with any of:
+
+- `JEV_TELEMETRY=0` in the environment
+- `DO_NOT_TRACK=1` in the environment
+- the plugin's `telemetry` option set to `false` (`/config`)
+
+Once opted out, the hook does not create an install ID or send anything.
+Self-hosters can point events elsewhere with `JEV_TELEMETRY_URL`.
+
 ## Development
 
 ```sh

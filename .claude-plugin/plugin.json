@@ -11,6 +11,12 @@
       "description": "Use TypeSafe Jev or the offline deterministic local scorer.",
       "default": "jev"
     },
+    "telemetry": {
+      "type": "boolean",
+      "title": "Share anonymous usage counts",
+      "description": "Send anonymous per-compaction counts (mode, status, token estimates) to the public community dashboard. No prompts, code, file names, or tool output are sent. JEV_TELEMETRY=0 or DO_NOT_TRACK=1 also disables it.",
+      "default": true
+    },
     "apiKey": {
       "type": "string",
       "title": "TypeSafe API key",

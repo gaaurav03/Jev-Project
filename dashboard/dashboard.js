@@ -243,8 +243,34 @@
     renderRuns(payload);
   }
 
+  function validateCommunity(value) {
+    const stats = object(value);
+    const counts = stats && [stats.installs, stats.activeInstalls30d, stats.compactions, stats.tokensSaved];
+    if (!counts || counts.some((entry) => number(entry) === null) || !object(stats.modes)) {
+      throw new Error('The community response has an unexpected shape.');
+    }
+    return stats;
+  }
+
+  async function loadCommunity() {
+    try {
+      const stats = validateCommunity(await fetchJson('/api/community'));
+      setText('community-saved', formatNumber(stats.tokensSaved));
+      setText('community-active', formatNumber(stats.activeInstalls30d));
+      setText('community-installs', `${formatNumber(stats.installs)} anonymous installs in total`);
+      setText('community-compactions', formatNumber(stats.compactions));
+      setText('community-modes', `${formatNumber(stats.modes.jev)} jev · ${formatNumber(stats.modes.local)} local`);
+      setText('community-reduction', formatPercent(stats.averageReduction));
+      byId('community').hidden = false;
+      setText('runs-scope', 'maintainer runs & benchmarks');
+    } catch {
+      byId('community').hidden = true;
+    }
+  }
+
   async function loadAll() {
     if (loading) return;
+    loadCommunity();
     loading = true;
     const refresh = byId('refresh-button');
     refresh.disabled = true;

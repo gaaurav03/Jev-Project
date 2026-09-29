@@ -128,6 +128,9 @@ code { padding: 2px 5px; border: 1px solid var(--hair); border-radius: 3px; back
 .sync-state { color: var(--ink-3); font-size: 10px; }
 
 .stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 0; border-top: 1px solid var(--hair-2); border-bottom: 1px solid var(--hair-2); text-align: left; }
+.strip-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin: 28px 0 10px; color: var(--ink-3); font: 600 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.strip-head span:first-child { color: var(--ink-2); }
+.community .stats-strip { border-top-color: var(--orange); }
 .stat-panel { min-width: 0; padding: 21px 20px 24px; border-left: 1px solid var(--hair); }
 .stat-panel:first-child { border-left: 0; }
 .stat-label { display: flex; align-items: center; gap: 8px; margin-bottom: 0; color: var(--ink-3); font: 600 9.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
