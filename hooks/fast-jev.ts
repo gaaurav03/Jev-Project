@@ -9,7 +9,12 @@ import type {
 } from 'claude-code';
 
 import { compact, reductionRatio, resolveOptions } from '../src/compact.js';
-import { buildJevRequest, DEFAULT_MODEL, parseJevResponse } from '../src/request.js';
+import {
+  buildJevRequest,
+  DEFAULT_MODEL,
+  JEV_REQUEST_TIMEOUT_MS,
+  parseJevResponse,
+} from '../src/request.js';
 import type {
   CompactOptions,
   CompactResult,
@@ -39,6 +44,18 @@ export type HookFetchResponse = {
 
 /** The shape of `$.http.fetch`, so the hook can be driven without an engine. */
 export type HookFetch = (url: string, init?: HookFetchInit) => Promise<HookFetchResponse>;
+
+type HookTimer = (ms: number, fn: () => void) => { cancel: () => void };
+
+export function withHookTimeout<T>(request: Promise<T>, after: HookTimer): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = after(JEV_REQUEST_TIMEOUT_MS, () => reject(new Error('Jev request timed out')));
+    request.then(
+      (value) => { timer.cancel(); resolve(value); },
+      (error: unknown) => { timer.cancel(); reject(error); },
+    );
+  });
+}
 
 export type HookConfig = CompactOptions & {
   apiKey?: string;
@@ -264,7 +281,7 @@ export const register: Register = (on: On, options: PluginOptions) => {
     try {
       const config = { ...configured, apiKey: await getApiKey($, configured) };
       const { result, messages } = await compactSession(event.messages, config, async (url, init) => {
-        const response = await $.http.fetch(url, init);
+        const response = await withHookTimeout($.http.fetch(url, init), $.clock.after);
         return { status: response.status, ok: response.ok, text: response.text };
       });
       for (const line of decisionLogLines(result)) $.ui.log(line);
