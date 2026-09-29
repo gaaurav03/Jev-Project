@@ -1,15 +1,16 @@
 {
-  "name": "fast-jev-compaction",
+  "name": "fast-jev-plus",
+  "description": "fast-jev-plus: verbatim context compaction for Claude Code, by Gaurav Gupta.",
   "owner": {
     "name": "gaaurav03",
     "url": "https://github.com/gaaurav03"
   },
   "plugins": [
     {
-      "name": "fast-jev-compaction",
+      "name": "fast-jev-plus",
       "source": "./",
       "description": "Verbatim Jev-guided compaction for Claude Code sessions.",
-      "version": "0.5.1",
+      "version": "0.6.0",
       "license": "MIT"
     }
   ]

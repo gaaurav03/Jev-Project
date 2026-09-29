@@ -1,14 +1,14 @@
 import type { RunRecord } from './run-record.js';
 
 /** Must match `.claude-plugin/plugin.json`; a test keeps them in sync. */
-export const PLUGIN_VERSION = '0.5.1';
+export const PLUGIN_VERSION = '0.6.0';
 export const DEFAULT_TELEMETRY_URL = 'https://jev-project-bay.vercel.app/api/telemetry';
 export const TELEMETRY_TIMEOUT_MS = 3_000;
 export const MAX_TELEMETRY_BYTES = 1024;
 export const MAX_TELEMETRY_TOKENS = 5_000_000;
 export const MAX_TELEMETRY_LATENCY_MS = 600_000;
 export const TELEMETRY_NOTICE =
-  'fast-jev-compaction shares anonymous usage counts (mode, status, token estimates) ' +
+  'fast-jev-plus shares anonymous usage counts (mode, status, token estimates) ' +
   'with the public community dashboard. No prompts, code, file names, or tool output ' +
   'are sent. Nothing is sent this session. Opt out: set JEV_TELEMETRY=0 or the ' +
   'plugin "telemetry" option to false.';
