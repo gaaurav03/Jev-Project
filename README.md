@@ -293,7 +293,7 @@ hook sends after each live compaction. Telemetry is **on by default**:
   `https://jev-project-bay.vercel.app/api/telemetry`:
 
 ~~~json
-{ "v": 1, "install_id": "<random 32 hex>", "plugin_version": "0.4.0",
+{ "v": 1, "install_id": "<random 32 hex>", "plugin_version": "0.5.0",
   "mode": "local", "status": "applied",
   "tokens_before": 1000, "tokens_after": 600, "latency_ms": 13 }
 ~~~
