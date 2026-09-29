@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "obsolete-read",
+      "name": "Remove an obsolete file read but retain the current one",
+      "category": "obsolete-read",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Update the formatter while preserving its current public behavior.",
+          "toolUses": []
+        },
+        {
+          "role": "assistant",
+          "text": "",
+          "toolUses": [
+            {
+              "tool_use_id": "read-old",
+              "tool": "Read",
+              "input": { "file_path": "src/format.ts" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "read-old",
+              "text": "export function format(value) { return String(value); }"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "The file changed, so I will read the current version.",
+          "toolUses": [
+            {
+              "tool_use_id": "read-current",
+              "tool": "Read",
+              "input": { "file_path": "src/format.ts" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "read-current",
+              "text": "export function format(value: unknown) { return String(value).trim(); }"
+            }
+          ]
+        }
+      ],
+      "expectations": {
+        "removableCalls": ["read-old"],
+        "criticalCalls": ["read-current"],
+        "criticalResults": ["read-current"]
+      },
+      "verification": "project-tests"
+    },
+    {
+      "id": "required-error",
+      "name": "Retain the failing test and its error output",
+      "category": "required-error",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Fix the failing parser test.",
+          "toolUses": []
+        },
+        {
+          "role": "assistant",
+          "text": "",
+          "toolUses": [
+            {
+              "tool_use_id": "test-failure",
+              "tool": "Bash",
+              "input": { "command": "npm test -- parser.test.ts" },
+              "isError": true
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "test-failure",
+              "text": "FAIL parser.test.ts: expected valid but received invalid at line 42",
+              "isError": true
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "The line 42 assertion identifies the regression.",
+          "toolUses": []
+        }
+      ],
+      "expectations": {
+        "removableCalls": [],
+        "criticalCalls": ["test-failure"],
+        "criticalResults": ["test-failure"]
+      },
+      "verification": "project-tests"
+    },
+    {
+      "id": "repeated-test",
+      "name": "Remove an old test run but retain the latest result",
+      "category": "repeated-test",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Run the tests after the fix.",
+          "toolUses": []
+        },
+        {
+          "role": "assistant",
+          "text": "",
+          "toolUses": [
+            {
+              "tool_use_id": "test-old",
+              "tool": "Bash",
+              "input": { "command": "npm test" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "test-old",
+              "text": "PASS 31 tests"
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "One more change was made; verifying again.",
+          "toolUses": [
+            {
+              "tool_use_id": "test-latest",
+              "tool": "Bash",
+              "input": { "command": "npm test" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "test-latest",
+              "text": "PASS 32 tests"
+            }
+          ]
+        }
+      ],
+      "expectations": {
+        "removableCalls": ["test-old"],
+        "criticalCalls": ["test-latest"],
+        "criticalResults": ["test-latest"]
+      },
+      "verification": "project-tests"
+    },
+    {
+      "id": "protected-constraint",
+      "name": "Retain a discovered repository constraint",
+      "category": "protected-constraint",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Add the feature without modifying generated files.",
+          "toolUses": []
+        },
+        {
+          "role": "assistant",
+          "text": "",
+          "toolUses": [
+            {
+              "tool_use_id": "read-rules",
+              "tool": "Read",
+              "input": { "file_path": "CONTRIBUTING.md" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "text": "",
+          "toolUses": [],
+          "toolResults": [
+            {
+              "tool_use_id": "read-rules",
+              "text": "Files under src/generated are produced by the build and must never be edited manually."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "text": "I will keep all changes outside src/generated.",
+          "toolUses": []
+        }
+      ],
+      "expectations": {
+        "removableCalls": [],
+        "criticalCalls": ["read-rules"],
+        "criticalResults": ["read-rules"]
+      },
+      "verification": "project-tests"
+    }
+  ]
+}
