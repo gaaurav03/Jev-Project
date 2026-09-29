@@ -52,7 +52,7 @@ import type {
 const HOOK_DEFAULTS = {
   mode: 'jev' as CompactionMode,
   compactAtPercent: 60,
-  minReductionRatio: 0.25,
+  minReductionRatio: 0.15,
   model: DEFAULT_MODEL,
 };
 
