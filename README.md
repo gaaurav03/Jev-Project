@@ -78,6 +78,7 @@ const transcript: Message[] = [
 ];
 
 const result = await compactMessages(transcript, { preserveRecentMessages: 4 });
+// Offline alternative: compactMessages(transcript, { mode: 'local' })
 console.log(result.messages, result.decisions, result.stats);
 if (reductionRatio(result) < 0.25) {
   // not worth it: keep the original transcript, or summarize instead
@@ -100,7 +101,8 @@ put it in a source file.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `apiKey` | `TYPESAFE_API_KEY` | TypeSafe API key (`compactMessages`/`JevClient`) |
+| `mode` | `jev` | `jev` for TypeSafe scoring, or `local` for deterministic offline scoring |
+| `apiKey` | `TYPESAFE_API_KEY` | TypeSafe API key (`compactMessages`/`JevClient`); unused in local mode |
 | `model` | `jev-latest` | Jev model name |
 | `baseUrl` | `https://api.typesafe.ai/v1/systemone` | System One endpoint |
 | `fetch` | native `fetch` | Injectable fetch implementation for tests |
@@ -164,10 +166,11 @@ just the repo's `.claude-plugin/marketplace.json`.
 
 ## Benchmark
 
-The benchmark runs every labelled case through Jev, checks critical call/result
-retention, runs only the reviewed verification command selected by the case,
-and reports estimated reduction, task pass rate, latency, requests, API usage,
-and known cost. Cost remains unknown when verified pricing is unavailable.
+The benchmark runs the same labelled cases through Jev and local mode by
+default, checks critical call/result retention, runs only reviewed verification
+commands, and reports estimated reduction, task pass rate, latency, requests,
+API usage, and known cost. Cost remains unknown when verified pricing is
+unavailable.
 
 PowerShell:
 
@@ -175,6 +178,8 @@ PowerShell:
 $env:TYPESAFE_API_KEY = 'your-key'
 npm.cmd run bench
 npm.cmd run bench -- --json
+npm.cmd run bench -- --mode local
+npm.cmd run bench -- --mode jev
 npm.cmd run bench -- --cases bench/cases/core.json
 ~~~
 
@@ -183,9 +188,12 @@ macOS/Linux:
 ~~~sh
 TYPESAFE_API_KEY='your-key' npm run bench
 npm run bench -- --json
+npm run bench -- --mode local
 ~~~
 
-Table output is the default; --json emits the complete machine-readable report.
+Table output is the default; `--json` emits the complete machine-readable report.
+`--mode local` needs no API key or network; `--mode jev` needs
+`TYPESAFE_API_KEY`; `--mode both` is the default.
 Benchmark JSON cannot provide executable commands. It can only select a command
 from the reviewed catalog in src/benchmark.ts.
 

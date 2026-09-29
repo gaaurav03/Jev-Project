@@ -54,10 +54,11 @@ function jevFetch(answer: (name: string) => number, bodies: string[] = []) {
 
 describe('hook config', () => {
   it('reads userConfig values and falls back to defaults', () => {
-    expect(resolveHookConfig({})).toEqual({ compactAtPercent: 60, minReductionRatio: 0.25, model: 'jev-latest' });
+    expect(resolveHookConfig({})).toEqual({ mode: 'jev', compactAtPercent: 60, minReductionRatio: 0.25, model: 'jev-latest' });
     expect(
       resolveHookConfig({ apiKey: 'k', keepThreshold: 0.3, maxStateTokens: 1000, model: 'jev-x', goal: 'g', compactAtPercent: 'no' }),
     ).toEqual({
+      mode: 'jev',
       apiKey: 'k',
       keepThreshold: 0.3,
       maxStateTokens: 1000,
@@ -168,6 +169,21 @@ describe('compactSession', () => {
     ]);
     expect(lines.every((line) => line.length <= 60)).toBe(true);
     expect(decisionLogLines({ ...output, decisions: [] })).toEqual(['decisions: (none)']);
+  });
+
+  it('runs local mode without a key or network request', async () => {
+    let fetched = false;
+    const { result: output } = await compactSession(
+      transcript(),
+      resolveHookConfig({ mode: 'local', preserveRecentMessages: 1 }),
+      async () => {
+        fetched = true;
+        throw new Error('network must not run');
+      },
+    );
+    expect(fetched).toBe(false);
+    expect(output.stats.requests).toBe(0);
+    expect(output.decisions.map((decision) => decision.action)).toEqual(['keep', 'keep']);
   });
 
   it('throws on a missing key and on failed requests so the hook falls back', async () => {

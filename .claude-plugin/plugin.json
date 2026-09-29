@@ -4,6 +4,12 @@
   "description": "Verbatim Jev-guided compaction for Claude Code sessions.",
   "license": "MIT",
   "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Compaction mode",
+      "description": "Use TypeSafe Jev or the offline deterministic local scorer.",
+      "default": "jev"
+    },
     "apiKey": {
       "type": "string",
       "title": "TypeSafe API key",

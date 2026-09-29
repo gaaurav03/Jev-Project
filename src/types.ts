@@ -107,6 +107,8 @@ export interface CompactOptions {
   truncateHeadChars?: number;
 }
 
+export type CompactionMode = 'jev' | 'local';
+
 export interface ResolvedCompactOptions {
   goal: string;
   keepThreshold: number;
@@ -209,5 +211,7 @@ export interface JevResponse {
 
 /** Anything that can answer Jev questions: `JevClient`, or a host-provided adapter. */
 export interface JevAsker {
+  /** False for deterministic local scorers, so network request metrics stay accurate. */
+  readonly isRemote?: boolean;
   ask(state: JevState, questions: JevQuestions): Promise<JevResponse>;
 }

@@ -331,7 +331,7 @@ export async function compact(
       pinned: count(decisions, 'pinned'),
       stateTokens: fitted.tokens,
       stateStage: fitted.stage,
-      requests: batches.length,
+      requests: asker.isRemote === false ? 0 : batches.length,
       ms: Date.now() - started,
       estimatedTokensBefore,
       estimatedTokensAfter,

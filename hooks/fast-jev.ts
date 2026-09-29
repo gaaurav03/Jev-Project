@@ -9,6 +9,7 @@ import type {
 } from 'claude-code';
 
 import { compact, reductionRatio, resolveOptions } from '../src/compact.js';
+import { LocalAsker } from '../src/local.js';
 import {
   buildJevRequest,
   DEFAULT_MODEL,
@@ -18,6 +19,7 @@ import {
 import type {
   CompactOptions,
   CompactResult,
+  CompactionMode,
   JevAsker,
   Message,
   ToolResult,
@@ -25,6 +27,7 @@ import type {
 } from '../src/types.js';
 
 const HOOK_DEFAULTS = {
+  mode: 'jev' as CompactionMode,
   compactAtPercent: 60,
   minReductionRatio: 0.25,
   model: DEFAULT_MODEL,
@@ -58,6 +61,7 @@ export function withHookTimeout<T>(request: Promise<T>, after: HookTimer): Promi
 }
 
 export type HookConfig = CompactOptions & {
+  mode: CompactionMode;
   apiKey?: string;
   compactAtPercent: number;
   minReductionRatio: number;
@@ -87,8 +91,10 @@ export function resolveHookConfig(options: PluginOptions): HookConfig {
     const value = options[key];
     if (typeof value === 'number' && Number.isFinite(value)) numbers[key] = value;
   }
+  const mode = optionString(options, 'mode');
   const config: HookConfig = {
     ...numbers,
+    mode: mode === 'local' ? 'local' : HOOK_DEFAULTS.mode,
     compactAtPercent: optionNumber(options, 'compactAtPercent', HOOK_DEFAULTS.compactAtPercent),
     minReductionRatio: optionNumber(
       options,
@@ -178,14 +184,19 @@ export type SessionCompaction = {
   messages: SessionMessage[];
 };
 
-/** Runs the library over a session transcript; throws when the key is missing or Jev fails. */
+/** Runs the selected compactor over a session transcript. */
 export async function compactSession(
   messages: readonly SessionMessage[],
   config: HookConfig,
   fetchFn: HookFetch,
 ): Promise<SessionCompaction> {
-  if (!config.apiKey) throw new Error('TYPESAFE_API_KEY is not configured');
-  const result = await compact(messages, jevAsker(fetchFn, config.apiKey, config.model), config);
+  let asker: JevAsker;
+  if (config.mode === 'local') asker = new LocalAsker();
+  else {
+    if (!config.apiKey) throw new Error('TYPESAFE_API_KEY is not configured');
+    asker = jevAsker(fetchFn, config.apiKey, config.model);
+  }
+  const result = await compact(messages, asker, config);
   return { result, messages: toSessionMessages(messages, result.messages) };
 }
 
@@ -279,9 +290,15 @@ export const register: Register = (on: On, options: PluginOptions) => {
 
   on('session.compact', async ($, event, next) => {
     try {
-      const config = { ...configured, apiKey: await getApiKey($, configured) };
+      const config =
+        configured.mode === 'local'
+          ? configured
+          : { ...configured, apiKey: await getApiKey($, configured) };
       const { result, messages } = await compactSession(event.messages, config, async (url, init) => {
-        const response = await withHookTimeout($.http.fetch(url, init), $.clock.after);
+        const response = await withHookTimeout(
+          $.http.fetch(url, init),
+          (ms, fn) => $.clock.after(ms, fn),
+        );
         return { status: response.status, ok: response.ok, text: response.text };
       });
       for (const line of decisionLogLines(result)) $.ui.log(line);
